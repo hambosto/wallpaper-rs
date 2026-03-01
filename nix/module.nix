@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  self,
   ...
 }:
 let
@@ -13,7 +14,7 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = pkgs.wallpaper-rs;
+      default = self.packages.${pkgs.stdenv.system}.default;
       defaultText = lib.literalExpression "pkgs.wallpaper-rs";
       description = "The wallpaper-rs package to use.";
     };
