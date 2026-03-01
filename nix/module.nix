@@ -24,7 +24,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    xdg.configFile."wallpaper-rs/config.toml".source = tomlFormat.generate "config.toml" { } {
+    xdg.configFile."wallpaper-rs/config.toml".source = tomlFormat.generate "config.toml" {
       image = toString cfg.image;
     };
 
