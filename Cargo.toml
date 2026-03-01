@@ -1,0 +1,20 @@
+[package]
+name = "wallpaper-rs"
+version = "26.3.0"
+edition = "2024"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[dependencies]
+anyhow = "1.0.102"
+fast_image_resize = "6.0.0"
+image = { version = "0.25.9", default-features = false, features = ["png", "jpeg"] }
+libc = "0.2.182"
+toml = "1.0.3"
+wayland-client = "0.31.12"
+wayland-protocols-wlr = { version = "0.3.10", features = ["client"] }
