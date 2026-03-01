@@ -2,69 +2,36 @@
   description = "A very small, very simple, yet very wallpaper tool written in rust.";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    systems.url = "github:nix-systems/default";
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    systems.url = "github:nix-systems/default-linux";
   };
 
   outputs =
     {
       nixpkgs,
       systems,
-      rust-overlay,
       self,
       ...
     }:
     let
-      forAllSystems = f: nixpkgs.lib.genAttrs (import systems) f;
-
-      pkgsFor = system: nixpkgs.legacyPackages.${system}.extend rust-overlay.overlays.default;
-
-      mkRustPlatform =
-        pkgs:
-        let
-          toolchain = pkgs.rust-bin.nightly.latest.default;
-        in
-        pkgs.makeRustPlatform {
-          cargo = toolchain;
-          rustc = toolchain;
-        };
-
+      inherit (nixpkgs) lib;
+      eachSystem = f: lib.genAttrs (import systems) (system: f nixpkgs.legacyPackages.${system});
     in
     {
-      overlays.default = final: prev: {
-        wallpaper-rs = final.callPackage ./nix/package.nix {
-          rustPlatform = mkRustPlatform final;
-        };
+      formatter = eachSystem (pkgs: pkgs.alejandra);
+
+      devShells = eachSystem (pkgs: {
+        default = pkgs.callPackage ./nix/shell.nix;
+      });
+
+      packages = eachSystem (pkgs: {
+        default = self.packages.${pkgs.stdenv.system}.wallpaper-rs;
+        wallpaper-rs = pkgs.callPackage ./nix/package.nix { };
+      });
+
+      homeManagerModules = {
+        default = self.homeManagerModules.wallpaper-rs;
+        wallpaper-rs = import ./nix/module.nix { inherit self; };
       };
-
-      homeManagerModules.default = ./nix/module.nix;
-
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = pkgsFor system;
-        in
-        {
-          default = pkgs.callPackage ./nix/package.nix {
-            rustPlatform = mkRustPlatform pkgs;
-          };
-        }
-      );
-
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = pkgsFor system;
-        in
-        {
-          default = pkgs.callPackage ./nix/shell.nix {
-            wallpaper-rs = self.packages.${system}.default;
-          };
-        }
-      );
     };
 }

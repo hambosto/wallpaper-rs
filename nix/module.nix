@@ -1,3 +1,4 @@
+{ self }:
 {
   config,
   lib,
@@ -7,12 +8,6 @@
 let
   cfg = config.services.wallpaper-rs;
   tomlFormat = pkgs.formats.toml { };
-  wallpaper-rs = pkgs.callPackage ./package.nix {
-    rustPlatform = pkgs.makeRustPlatform {
-      cargo = pkgs.rustc;
-      rustc = pkgs.rustc;
-    };
-  };
 in
 {
   options.services.wallpaper-rs = {
@@ -20,7 +15,7 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = wallpaper-rs;
+      default = self.packages.${pkgs.stdenv.system}.wallpaper-rs;
     };
 
     image = lib.mkOption {
@@ -29,7 +24,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    xdg.configFile."wallpaper-rs/config.toml".source = tomlFormat.generate "config.toml" {
+    xdg.configFile."wallpaper-rs/config.toml".source = tomlFormat.generate "config.toml" { } {
       image = toString cfg.image;
     };
 
