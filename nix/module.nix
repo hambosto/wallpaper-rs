@@ -2,11 +2,16 @@
   config,
   lib,
   pkgs,
-  self,
   ...
 }:
 let
   cfg = config.services.wallpaper-rs;
+  wallpaper-rs = pkgs.callPackage ./package.nix {
+    rustPlatform = pkgs.makeRustPlatform {
+      cargo = pkgs.rustc;
+      rustc = pkgs.rustc;
+    };
+  };
 in
 {
   options.services.wallpaper-rs = {
@@ -14,15 +19,11 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = self.packages.${pkgs.stdenv.system}.default;
-      defaultText = lib.literalExpression "pkgs.wallpaper-rs";
-      description = "The wallpaper-rs package to use.";
+      default = wallpaper-rs;
     };
 
     image = lib.mkOption {
       type = lib.types.path;
-      description = "Path to the wallpaper image.";
-      example = lib.literalExpression "./image.jpg";
     };
   };
 
