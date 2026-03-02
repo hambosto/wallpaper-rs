@@ -26,8 +26,6 @@ This is a simple wallpaper setter. No fancy features, no daemons running in the 
 - **Fast startup** - Minimal initialization, renders directly to SHM buffers
 
 ## Requirements
-
-- **Linux** with memfd support
 - **Wayland compositor** with:
   - Layer Shell protocol (`zwlr_layer_shell_v1`)
   - Shared Memory protocol (`wl_shm`)
@@ -35,15 +33,9 @@ This is a simple wallpaper setter. No fancy features, no daemons running in the 
 - **Wayland session** with `WAYLAND_DISPLAY` set
 
 ### Tested Compositors
-
-- Niri (primary)
-- Hyprland
-- River
-- Sway
-- Labwc
+- Niri
 
 ## Supported Image Formats
-
 - PNG
 - JPEG/JPG
 
@@ -65,11 +57,11 @@ Then use in your Home Manager configuration:
 { inputs, ... }:
 
 {
-  imports = [ inputs.wallpaper-rs.homeManagerModules.wallpaper-rs ];
+  imports = [ inputs.wallpaper-rs.homeManagerModules.default ];
 
   services.wallpaper-rs = {
     enable = true;
-    image = "/path/to/your/wallpaper.png";
+    image = /path/to/your/wallpaper.png;
   };
 }
 ```
@@ -111,7 +103,32 @@ The binary will be at `target/release/wallpaper-rs`.
    mkdir -p ~/.config/wallpaper-rs
    ```
 4. Create config file (see Configuration section)
-5. Add to your compositor's autostart
+5. Create a systemd user service at `~/.config/systemd/user/wallpaper-rs.service`:
+
+   ```
+   [Unit]
+   ConditionEnvironment=WAYLAND_DISPLAY
+   After=graphical-session.target
+   PartOf=graphical-session.target
+
+   [Service]
+   ExecStart=%h/.local/bin/wallpaper-rs
+   Restart=on-failure
+   RestartSec=10
+
+   [Install]
+   WantedBy=graphical-session.target
+   ```
+
+6. Enable and start the service:
+   ```bash
+   systemctl --user enable --now wallpaper-rs
+   ```
+
+   After changing the wallpaper image in config, restart the service:
+   ```bash
+   systemctl --user restart wallpaper-rs
+   ```
 
 ## Configuration
 
