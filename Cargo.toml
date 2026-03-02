@@ -12,7 +12,6 @@ panic = "abort"
 
 [dependencies]
 anyhow = "1.0.102"
-fast_image_resize = "6.0.0"
 image = { version = "0.25.9", default-features = false, features = ["png", "jpeg"] }
 rustix = { version = "1.1.4", default-features = false, features = ["fs", "mm"] }
 serde = { version = "1.0.228", features = ["derive"] }

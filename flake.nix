@@ -1,5 +1,5 @@
 {
-  description = "A very small, very simple, yet very wayland wallpaper tool written in rust.";
+  description = "A lightweight, daemonless wallpaper tool for Wayland compositors, written in Rust.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

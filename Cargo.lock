@@ -64,15 +64,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "document-features"
-version = "0.2.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4b8a88685455ed29a21542a33abd9cb6510b6b129abadabdcef0f4c55bc8f61"
-dependencies = [
- "litrs",
-]
-
-[[package]]
 name = "downcast-rs"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -92,18 +83,6 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys",
-]
-
-[[package]]
-name = "fast_image_resize"
-version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12dd43e5011e8d8411a3215a0d57a2ec5c68282fb90eb5d7221fab0113442174"
-dependencies = [
- "cfg-if",
- "document-features",
- "num-traits",
- "thiserror",
 ]
 
 [[package]]
@@ -173,12 +152,6 @@ name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
-
-[[package]]
-name = "litrs"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "memchr"
@@ -349,26 +322,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "thiserror"
-version = "2.0.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
-dependencies = [
- "thiserror-impl",
-]
-
-[[package]]
-name = "thiserror-impl"
-version = "2.0.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "toml"
 version = "1.0.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -418,7 +371,6 @@ name = "wallpaper-rs"
 version = "26.3.0"
 dependencies = [
  "anyhow",
- "fast_image_resize",
  "image",
  "rustix",
  "serde",

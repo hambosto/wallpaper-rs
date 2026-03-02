@@ -20,7 +20,7 @@ rustPlatform.buildRustPackage (final: {
   cargoLock.lockFile = ../Cargo.lock;
 
   meta = {
-    description = "A very small, very simple, yet very wayland wallpaper setter written in rust.";
+    description = "A lightweight, daemonless wallpaper tool for Wayland compositors, written in Rust.";
     homepage = "https://github.com/hambosto/wallpaper-rs";
     license = lib.licenses.mit;
     mainProgram = "wallpaper-rs";
