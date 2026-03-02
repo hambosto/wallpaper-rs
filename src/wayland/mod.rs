@@ -5,13 +5,13 @@ mod state;
 mod surface;
 
 use anyhow::{Context, Result};
+
+pub use state::WaylandState;
 use wayland_client::Connection;
 
 use crate::config::Config;
 use crate::renderer::ImageRenderer;
 use crate::shm::ShmBufferBuilder;
-
-pub use state::WaylandState;
 
 pub struct WallpaperApp {
     config: Config,

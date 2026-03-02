@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
-use crate::shm::ShmBuffer;
-
 use super::globals::BoundGlobals;
 use super::output::OutputInfo;
 use super::surface::PendingSurface;
+use crate::shm::ShmBuffer;
 
 #[derive(Default)]
 pub struct WaylandState {

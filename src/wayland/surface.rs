@@ -36,13 +36,14 @@ pub fn create_for_outputs(compositor: &WlCompositor, layer_shell: &ZwlrLayerShel
 impl Dispatch<ZwlrLayerSurfaceV1, usize> for WaylandState {
     fn event(state: &mut Self, _: &ZwlrLayerSurfaceV1, event: Event, idx: &usize, _: &Connection, _: &QueueHandle<Self>) {
         if let Event::Configure { serial, width, height } = event
-            && let Some(ps) = state.pending.get_mut(*idx) {
-                ps.configure_serial = Some(serial);
-                if width > 0 && height > 0 {
-                    ps.width = width;
-                    ps.height = height;
-                }
+            && let Some(ps) = state.pending.get_mut(*idx)
+        {
+            ps.configure_serial = Some(serial);
+            if width > 0 && height > 0 {
+                ps.width = width;
+                ps.height = height;
             }
+        }
     }
 }
 
