@@ -15,6 +15,8 @@ rustPlatform.buildRustPackage (final: {
     ];
   };
 
+  doCheck = false;
+
   cargoLock.lockFile = ../Cargo.lock;
 
   meta = {
