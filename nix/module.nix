@@ -8,43 +8,43 @@
 let
   cfg = config.services.wallpaper-rs;
   tomlFormat = pkgs.formats.toml { };
+  configFile = tomlFormat.generate "wallpaper-rs-config.toml" {
+    image = toString cfg.image;
+  };
 in
 {
   options.services.wallpaper-rs = {
-    enable = lib.mkEnableOption "wallpaper-rs wallpaper setter";
+    enable = lib.mkEnableOption "wallpaper-rs wayland wallpaper setter";
 
-    package = lib.mkOption {
-      type = lib.types.package;
-      default = self.packages.${pkgs.stdenv.system}.wallpaper-rs;
-    };
+    package = lib.mkPackageOption self.packages.${pkgs.stdenv.system} "wallpaper-rs" { };
 
     image = lib.mkOption {
       type = lib.types.path;
+      description = "Path to the wallpaper image file.";
+      example = lib.literalExpression "/home/user/wallpaper.png";
     };
   };
 
   config = lib.mkIf cfg.enable {
-    xdg.configFile."wallpaper-rs/config.toml".source = tomlFormat.generate "config.toml" {
-      image = toString cfg.image;
-    };
+    xdg.configFile."wallpaper-rs/config.toml".source = configFile;
 
     systemd.user.services.wallpaper-rs = {
-      Install = {
-        WantedBy = [ config.wayland.systemd.target ];
-      };
       Unit = {
+        Description = "wallpaper-rs wayland wallpaper setter";
         ConditionEnvironment = "WAYLAND_DISPLAY";
-        Description = "wallpaper-rs";
         After = [ config.wayland.systemd.target ];
         PartOf = [ config.wayland.systemd.target ];
-        X-Restart-Triggers = [
-          "${config.xdg.configFile."wallpaper-rs/config.toml".source}"
-        ];
+        X-Restart-Triggers = [ "${configFile}" ];
       };
+
       Service = {
-        ExecStart = "${lib.getExe cfg.package}";
-        Restart = "always";
-        RestartSec = "10";
+        ExecStart = lib.getExe cfg.package;
+        Restart = "on-failure";
+        RestartSec = 10;
+      };
+
+      Install = {
+        WantedBy = [ config.wayland.systemd.target ];
       };
     };
   };

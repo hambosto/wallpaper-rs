@@ -3,7 +3,5 @@
   wallpaper-rs,
 }:
 mkShell {
-  inputsFrom = [
-    wallpaper-rs
-  ];
+  inputsFrom = [ wallpaper-rs ];
 }

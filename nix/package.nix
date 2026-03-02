@@ -4,7 +4,7 @@
 }:
 rustPlatform.buildRustPackage (final: {
   pname = "wallpaper-rs";
-  version = "v26.3.0";
+  version = "26.3.0";
 
   src = lib.fileset.toSource {
     root = ../.;
@@ -22,6 +22,7 @@ rustPlatform.buildRustPackage (final: {
     homepage = "https://github.com/hambosto/wallpaper-rs";
     license = lib.licenses.mit;
     mainProgram = "wallpaper-rs";
-    platforms = lib.platforms.unix;
+    maintainers = [ ];
+    platforms = lib.platforms.linux;
   };
 })

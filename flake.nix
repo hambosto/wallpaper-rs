@@ -1,5 +1,5 @@
 {
-  description = "A very small, very simple, yet very wallpaper tool written in rust.";
+  description = "A very small, very simple, yet very wayland wallpaper tool written in rust.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -8,30 +8,32 @@
 
   outputs =
     {
+      self,
       nixpkgs,
       systems,
-      self,
-      ...
     }:
     let
       inherit (nixpkgs) lib;
-      eachSystem = f: lib.genAttrs (import systems) (system: f nixpkgs.legacyPackages.${system});
+      eachSystem = lib.genAttrs (import systems);
+      pkgsFor = system: nixpkgs.legacyPackages.${system};
     in
     {
-      formatter = eachSystem (pkgs: pkgs.alejandra);
+      formatter = eachSystem (system: (pkgsFor system).alejandra);
 
-      devShells = eachSystem (pkgs: {
-        default = pkgs.callPackage ./nix/shell.nix;
+      devShells = eachSystem (system: {
+        default = (pkgsFor system).callPackage ./nix/shell.nix {
+          inherit (self.packages.${system}) wallpaper-rs;
+        };
       });
 
-      packages = eachSystem (pkgs: {
-        default = self.packages.${pkgs.stdenv.system}.wallpaper-rs;
-        wallpaper-rs = pkgs.callPackage ./nix/package.nix { };
+      packages = eachSystem (system: {
+        wallpaper-rs = (pkgsFor system).callPackage ./nix/package.nix { };
+        default = self.packages.${system}.wallpaper-rs;
       });
 
       homeManagerModules = {
-        default = self.homeManagerModules.wallpaper-rs;
         wallpaper-rs = import ./nix/module.nix { inherit self; };
+        default = self.homeManagerModules.wallpaper-rs;
       };
     };
 }
