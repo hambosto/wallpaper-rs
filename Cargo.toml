@@ -14,7 +14,8 @@ panic = "abort"
 anyhow = "1.0.102"
 fast_image_resize = "6.0.0"
 image = { version = "0.25.9", default-features = false, features = ["png", "jpeg"] }
-libc = "0.2.182"
+rustix = { version = "1.1.4", default-features = false, features = ["fs", "mm"] }
+serde = { version = "1.0.228", features = ["derive"] }
 toml = "1.0.3"
 wayland-client = "0.31.12"
 wayland-protocols-wlr = { version = "0.3.10", features = ["client"] }

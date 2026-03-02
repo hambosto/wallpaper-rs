@@ -4,8 +4,8 @@ use wayland_client::{Connection, Dispatch, QueueHandle};
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1};
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::{Anchor, Event, ZwlrLayerSurfaceV1};
 
-use crate::output::ResolvedOutput;
-use crate::wayland::WaylandState;
+use super::output::ResolvedOutput;
+use super::state::WaylandState;
 
 pub struct PendingSurface {
     pub layer_surface: ZwlrLayerSurfaceV1,
@@ -36,14 +36,13 @@ pub fn create_for_outputs(compositor: &WlCompositor, layer_shell: &ZwlrLayerShel
 impl Dispatch<ZwlrLayerSurfaceV1, usize> for WaylandState {
     fn event(state: &mut Self, _: &ZwlrLayerSurfaceV1, event: Event, idx: &usize, _: &Connection, _: &QueueHandle<Self>) {
         if let Event::Configure { serial, width, height } = event
-            && let Some(ps) = state.pending.get_mut(*idx)
-        {
-            ps.configure_serial = Some(serial);
-            if width > 0 && height > 0 {
-                ps.width = width;
-                ps.height = height;
+            && let Some(ps) = state.pending.get_mut(*idx) {
+                ps.configure_serial = Some(serial);
+                if width > 0 && height > 0 {
+                    ps.width = width;
+                    ps.height = height;
+                }
             }
-        }
     }
 }
 
