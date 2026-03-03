@@ -546,12 +546,10 @@ version = "26.3.0"
 dependencies = [
  "anyhow",
  "image",
- "rustix",
  "serde",
  "smithay-client-toolkit",
  "toml",
  "wayland-client",
- "wayland-protocols-wlr",
 ]
 
 [[package]]
