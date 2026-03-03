@@ -92,7 +92,7 @@ struct ReadyToRender {
 
 impl ReadyToRender {
     fn render(mut self, config: &Config) -> Result<Active> {
-        let renderer = ImageRenderer::open(&config.image);
+        let renderer = ImageRenderer::open(&config.image)?;
         log::info!("Rendering wallpapers: {}", config.image.display());
 
         match self.inner.state.commit_wallpapers(&renderer, &self.qh)? {

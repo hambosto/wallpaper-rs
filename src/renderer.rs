@@ -1,23 +1,22 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result};
 use image::{ImageReader, RgbaImage};
 
 pub struct ImageRenderer {
-    path: PathBuf,
+    src: RgbaImage,
 }
 
 impl ImageRenderer {
-    pub fn open(path: impl AsRef<Path>) -> Self {
-        Self { path: path.as_ref().to_path_buf() }
+    pub fn open(path: impl AsRef<Path>) -> Result<Self> {
+        let src = load_image(path.as_ref())?;
+        Ok(Self { src })
     }
 
-    pub fn render(&self, width: u32, height: u32, dst: &mut [u8]) -> Result<()> {
-        let src = load_image(&self.path)?;
+    pub fn render(&self, width: u32, height: u32, dst: &mut [u8]) {
         let viewport = Viewport::new(width, height);
-        let sampler = CoverSampler::new(src, viewport);
+        let sampler = CoverSampler::new(&self.src, viewport);
         sampler.rasterize(dst);
-        Ok(())
     }
 }
 
@@ -33,14 +32,14 @@ impl Viewport {
     }
 }
 
-struct CoverSampler {
-    src: RgbaImage,
+struct CoverSampler<'a> {
+    src: &'a RgbaImage,
     src_xs: Vec<u32>,
     src_ys: Vec<u32>,
 }
 
-impl CoverSampler {
-    fn new(src: RgbaImage, viewport: Viewport) -> Self {
+impl<'a> CoverSampler<'a> {
+    fn new(src: &'a RgbaImage, viewport: Viewport) -> Self {
         let scale = cover_scale(src.width(), src.height(), viewport.width, viewport.height);
         let x_off = centring_offset(src.width(), viewport.width, scale);
         let y_off = centring_offset(src.height(), viewport.height, scale);
