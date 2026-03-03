@@ -25,7 +25,7 @@ struct Session {
 
 impl Session {
     fn connect() -> Result<Self> {
-        tracing::info!("Connecting to Wayland display");
+        log::info!("Connecting to Wayland display");
 
         let conn = Connection::connect_to_env().context("Failed to connect to Wayland display")?;
 
@@ -36,7 +36,7 @@ impl Session {
 
         let state = WaylandState::new(RegistryState::new(&globals), OutputState::new(&globals, &qh), compositor, layer_shell, shm);
 
-        tracing::info!("Connected");
+        log::info!("Connected");
         Ok(Self { state, eq })
     }
 
@@ -51,7 +51,7 @@ impl Session {
                 0 => anyhow::bail!("No wl_output objects found — no displays detected"),
                 n => anyhow::bail!("{n} wl_output(s) found but none finished configuring"),
             },
-            n => tracing::info!(count = n, "Outputs resolved"),
+            n => log::info!("Outputs resolved: {}", n),
         }
 
         Ok(WithOutputs { inner: self, outputs })
@@ -79,7 +79,7 @@ struct PendingConfigure {
 
 impl PendingConfigure {
     fn wait_for_configure(mut self) -> Result<ReadyToRender> {
-        tracing::info!("Waiting for configure");
+        log::info!("Waiting for configure");
         let _ = self.inner.eq.roundtrip(&mut self.inner.state).context("Configure roundtrip failed")?;
         Ok(ReadyToRender { inner: self.inner, qh: self.qh })
     }
@@ -93,11 +93,11 @@ struct ReadyToRender {
 impl ReadyToRender {
     fn render(mut self, config: &Config) -> Result<Active> {
         let renderer = ImageRenderer::open(&config.image);
-        tracing::info!(image = %config.image.display(), "Rendering wallpapers");
+        log::info!("Rendering wallpapers: {}", config.image.display());
 
         match self.inner.state.commit_wallpapers(&renderer, &self.qh)? {
             0 => anyhow::bail!("No wallpapers were set — check your configuration"),
-            n => tracing::info!(count = n, "Wallpapers committed"),
+            n => log::info!("Wallpapers committed: {}", n),
         }
 
         let _ = self.inner.eq.roundtrip(&mut self.inner.state).context("Final roundtrip failed")?;
@@ -111,7 +111,7 @@ struct Active {
 
 impl Active {
     fn event_loop(mut self) -> Result<()> {
-        tracing::info!("Entering event loop");
+        log::info!("Entering event loop");
         loop {
             self.inner.eq.blocking_dispatch(&mut self.inner.state).context("Wayland dispatch error")?;
         }

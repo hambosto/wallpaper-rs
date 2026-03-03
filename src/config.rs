@@ -14,13 +14,13 @@ pub struct Config {
 impl Config {
     pub fn load() -> Result<Self> {
         let path = config_path()?;
-        tracing::info!(path = %path.display(), "Loading configuration");
+        log::info!("Loading configuration: {}", path.display());
 
         let raw = std::fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
         let config: Config = toml::from_str(&raw).with_context(|| format!("Failed to parse {}", path.display()))?;
         let image = validated_image_path(&config.image)?;
 
-        tracing::info!(image = %image.display(), "Configuration loaded");
+        log::info!("Configuration loaded: {}", image.display());
 
         Ok(Self { image })
     }

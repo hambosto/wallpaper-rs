@@ -12,25 +12,12 @@ impl ImageRenderer {
         Self { path: path.as_ref().to_path_buf() }
     }
 
-    pub fn render(&self, target: RenderTarget) -> Result<()> {
+    pub fn render(&self, width: u32, height: u32, dst: &mut [u8]) -> Result<()> {
         let src = load_image(&self.path)?;
-        let viewport = Viewport::new(target.width, target.height);
+        let viewport = Viewport::new(width, height);
         let sampler = CoverSampler::new(src, viewport);
-        sampler.rasterize(target.buffer);
+        sampler.rasterize(dst);
         Ok(())
-    }
-}
-
-pub struct RenderTarget<'a> {
-    pub buffer: &'a mut [u8],
-    pub width: u32,
-    pub height: u32,
-}
-
-impl<'a> RenderTarget<'a> {
-    pub fn new(buffer: &'a mut [u8], width: u32, height: u32) -> Self {
-        debug_assert_eq!(buffer.len(), width as usize * height as usize * 4);
-        Self { buffer, width, height }
     }
 }
 

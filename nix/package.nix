@@ -1,6 +1,8 @@
 {
   lib,
+  pkg-config,
   rustPlatform,
+  libxkbcommon,
 }:
 rustPlatform.buildRustPackage (final: {
   pname = "wallpaper-rs";
@@ -14,6 +16,14 @@ rustPlatform.buildRustPackage (final: {
       ../Cargo.toml
     ];
   };
+
+  buildInputs = [
+    libxkbcommon
+  ];
+
+  nativeBuildInputs = [
+    pkg-config
+  ];
 
   doCheck = false;
 

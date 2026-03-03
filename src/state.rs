@@ -12,7 +12,6 @@ use wayland_client::protocol::wl_surface::WlSurface;
 use crate::buffer::ShmBuffer;
 use crate::output::ResolvedOutput;
 use crate::renderer::ImageRenderer;
-use crate::renderer::RenderTarget;
 
 pub struct PendingSurface {
     pub layer_surface: LayerSurface,
@@ -91,11 +90,7 @@ impl WaylandState {
             };
 
             let (w, h) = (ps.width, ps.height);
-            let buffer = ShmBuffer::new(&self.shm_state, w, h, qh, |dst| {
-                let target = RenderTarget::new(dst, w, h);
-                renderer.render(target)
-            })
-            .with_context(|| format!("Failed to render wallpaper for {}", ps.output_name))?;
+            let buffer = ShmBuffer::new(&self.shm_state, w, h, qh, |dst| renderer.render(w, h, dst)).with_context(|| format!("Failed to render wallpaper for {}", ps.output_name))?;
 
             ps.surface.attach(Some(buffer.buffer()), 0, 0);
             ps.surface.damage_buffer(0, 0, w as i32, h as i32);
@@ -104,12 +99,7 @@ impl WaylandState {
             self.surfaces.push(ActiveSurface { _layer_surface: ps.layer_surface, _surface: ps.surface });
             self.buffers.push(buffer);
 
-            tracing::info!(
-                output = %ps.output_name,
-                width = w,
-                height = h,
-                "Wallpaper set"
-            );
+            log::info!("Wallpaper set: output={}, width={}, height={}", ps.output_name, w, h);
             count += 1;
         }
 
