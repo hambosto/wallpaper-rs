@@ -16,4 +16,6 @@ image = { version = "0.25.9", default-features = false, features = ["png", "jpeg
 serde = { version = "1.0.228", features = ["derive"] }
 smithay-client-toolkit = "0.20.0"
 toml = "1.0.3"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 wayland-client = "0.31.12"

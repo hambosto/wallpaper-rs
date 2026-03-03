@@ -1,68 +1,119 @@
 use anyhow::{Context, Result};
 use smithay_client_toolkit::output::OutputState;
 use smithay_client_toolkit::registry::RegistryState;
-use wayland_client::Connection;
+use wayland_client::{Connection, EventQueue, QueueHandle};
 
 use crate::config::Config;
+use crate::globals::BoundGlobals;
+use crate::output::ResolvedOutput;
 use crate::renderer::ImageRenderer;
 use crate::state::WaylandState;
-use crate::{globals, output};
 
-pub struct WallpaperApp {
-    config: Config,
+pub fn run(config: Config) -> Result<()> {
+    let session = Session::connect()?;
+    let with_outputs = session.enumerate_outputs()?;
+    let pending = with_outputs.create_surfaces()?;
+    let ready = pending.wait_for_configure()?;
+    let active = ready.render(&config)?;
+    active.event_loop()
 }
 
-impl WallpaperApp {
-    pub fn new(config: Config) -> Self {
-        Self { config }
-    }
+struct Session {
+    state: WaylandState,
+    eq: EventQueue<WaylandState>,
+}
 
-    pub fn run(self) -> Result<()> {
+impl Session {
+    fn connect() -> Result<Self> {
+        tracing::info!("Connecting to Wayland display");
+
         let conn = Connection::connect_to_env().context("Failed to connect to Wayland display")?;
 
-        let (global_list, mut event_queue) = wayland_client::globals::registry_queue_init::<WaylandState>(&conn).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+        let (globals, eq) = wayland_client::globals::registry_queue_init::<WaylandState>(&conn).map_err(|e| anyhow::anyhow!("Failed to initialise registry: {e:?}"))?;
 
-        let qh = event_queue.handle();
+        let qh = eq.handle();
+        let BoundGlobals { compositor, shm, layer_shell } = BoundGlobals::bind(&globals, &qh)?;
 
-        let registry_state = RegistryState::new(&global_list);
-        let output_state = OutputState::new(&global_list, &qh);
+        let state = WaylandState::new(RegistryState::new(&globals), OutputState::new(&globals, &qh), compositor, layer_shell, shm);
 
-        let bound = globals::bind_globals(&global_list, &qh)?;
+        tracing::info!("Connected");
+        Ok(Self { state, eq })
+    }
 
-        let compositor_state = bound.compositor;
-        let layer_shell_state = bound.layer_shell;
-        let shm_state = bound.shm;
+    fn enumerate_outputs(mut self) -> Result<WithOutputs> {
+        let _ = self.eq.roundtrip(&mut self.state).context("Initial roundtrip failed")?;
+        let _ = self.eq.roundtrip(&mut self.state).context("Output roundtrip failed")?;
 
-        let mut state = WaylandState { registry_state, output_state, compositor_state, layer_shell_state, shm_state, pending: Vec::new(), surfaces: Vec::new(), buffers: Vec::new() };
+        let outputs = ResolvedOutput::resolve_all(&self.state.output_state);
 
-        event_queue.roundtrip(&mut state).context("Initial roundtrip")?;
-        event_queue.roundtrip(&mut state).context("Output roundtrip")?;
-
-        let outputs = output::resolve(&state.output_state);
-        if outputs.is_empty() {
-            let total = state.output_state.outputs().count();
-            if total > 0 {
-                anyhow::bail!("{total} wl_output(s) found but none finished configuring");
-            }
-            anyhow::bail!("No wl_output objects found");
+        match outputs.len() {
+            0 => match self.state.output_state.outputs().count() {
+                0 => anyhow::bail!("No wl_output objects found — no displays detected"),
+                n => anyhow::bail!("{n} wl_output(s) found but none finished configuring"),
+            },
+            n => tracing::info!(count = n, "Outputs resolved"),
         }
 
-        let compositor = state.compositor_state.clone();
-        state.create_surfaces(&compositor, &outputs, &qh);
-        event_queue.roundtrip(&mut state).context("Configure roundtrip")?;
+        Ok(WithOutputs { inner: self, outputs })
+    }
+}
 
-        let renderer = ImageRenderer::open(&self.config.image)?;
-        let count = state.commit_wallpapers(&renderer, &qh)?;
+struct WithOutputs {
+    inner: Session,
+    outputs: Vec<ResolvedOutput>,
+}
 
-        if count == 0 {
-            anyhow::bail!("No wallpapers were set — check your config");
+impl WithOutputs {
+    fn create_surfaces(mut self) -> Result<PendingConfigure> {
+        let qh = self.inner.eq.handle();
+        let compositor = self.inner.state.compositor().clone();
+        self.inner.state.create_surfaces(&compositor, &self.outputs, &qh);
+        Ok(PendingConfigure { inner: self.inner, qh })
+    }
+}
+
+struct PendingConfigure {
+    inner: Session,
+    qh: QueueHandle<WaylandState>,
+}
+
+impl PendingConfigure {
+    fn wait_for_configure(mut self) -> Result<ReadyToRender> {
+        tracing::info!("Waiting for configure");
+        let _ = self.inner.eq.roundtrip(&mut self.inner.state).context("Configure roundtrip failed")?;
+        Ok(ReadyToRender { inner: self.inner, qh: self.qh })
+    }
+}
+
+struct ReadyToRender {
+    inner: Session,
+    qh: QueueHandle<WaylandState>,
+}
+
+impl ReadyToRender {
+    fn render(mut self, config: &Config) -> Result<Active> {
+        let renderer = ImageRenderer::open(&config.image);
+        tracing::info!(image = %config.image.display(), "Rendering wallpapers");
+
+        match self.inner.state.commit_wallpapers(&renderer, &self.qh)? {
+            0 => anyhow::bail!("No wallpapers were set — check your configuration"),
+            n => tracing::info!(count = n, "Wallpapers committed"),
         }
 
-        event_queue.roundtrip(&mut state).context("Final roundtrip")?;
-        println!("Done — {count} output(s) wallpapered");
+        let _ = self.inner.eq.roundtrip(&mut self.inner.state).context("Final roundtrip failed")?;
+        Ok(Active { inner: self.inner })
+    }
+}
 
+struct Active {
+    inner: Session,
+}
+
+impl Active {
+    fn event_loop(mut self) -> Result<()> {
+        tracing::info!("Entering event loop");
         loop {
-            event_queue.blocking_dispatch(&mut state).context("Wayland dispatch error")?;
+            self.inner.eq.blocking_dispatch(&mut self.inner.state).context("Wayland dispatch error")?;
         }
     }
 }

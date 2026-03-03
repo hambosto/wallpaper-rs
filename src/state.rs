@@ -1,3 +1,5 @@
+use std::mem;
+
 use anyhow::{Context, Result};
 use smithay_client_toolkit::compositor::CompositorState;
 use smithay_client_toolkit::output::OutputState;
@@ -7,9 +9,10 @@ use smithay_client_toolkit::shm::Shm;
 use wayland_client::QueueHandle;
 use wayland_client::protocol::wl_surface::WlSurface;
 
-use super::buffer::{ShmBuffer, ShmBufferBuilder};
-use super::output::ResolvedOutput;
+use crate::buffer::ShmBuffer;
+use crate::output::ResolvedOutput;
 use crate::renderer::ImageRenderer;
+use crate::renderer::RenderTarget;
 
 pub struct PendingSurface {
     pub layer_surface: LayerSurface,
@@ -21,22 +24,46 @@ pub struct PendingSurface {
 }
 
 pub struct ActiveSurface {
-    pub _layer_surface: LayerSurface,
-    pub _surface: WlSurface,
+    _layer_surface: LayerSurface,
+    _surface: WlSurface,
 }
 
 pub struct WaylandState {
-    pub registry_state: RegistryState,
+    registry_state: RegistryState,
     pub output_state: OutputState,
-    pub compositor_state: CompositorState,
-    pub layer_shell_state: LayerShell,
-    pub shm_state: Shm,
-    pub pending: Vec<PendingSurface>,
-    pub surfaces: Vec<ActiveSurface>,
-    pub buffers: Vec<ShmBuffer>,
+    compositor_state: CompositorState,
+    layer_shell_state: LayerShell,
+    shm_state: Shm,
+    pending: Vec<PendingSurface>,
+    surfaces: Vec<ActiveSurface>,
+    buffers: Vec<ShmBuffer>,
 }
 
 impl WaylandState {
+    pub fn new(registry_state: RegistryState, output_state: OutputState, compositor_state: CompositorState, layer_shell_state: LayerShell, shm_state: Shm) -> Self {
+        Self { registry_state, output_state, compositor_state, layer_shell_state, shm_state, pending: Vec::new(), surfaces: Vec::new(), buffers: Vec::new() }
+    }
+
+    pub fn compositor(&self) -> &CompositorState {
+        &self.compositor_state
+    }
+
+    pub fn registry(&mut self) -> &mut RegistryState {
+        &mut self.registry_state
+    }
+
+    pub fn outputs(&mut self) -> &mut OutputState {
+        &mut self.output_state
+    }
+
+    pub fn shm(&mut self) -> &mut Shm {
+        &mut self.shm_state
+    }
+
+    pub fn pending_surfaces(&mut self) -> &mut [PendingSurface] {
+        &mut self.pending
+    }
+
     pub fn create_surfaces(&mut self, compositor: &CompositorState, outputs: &[ResolvedOutput], qh: &QueueHandle<Self>) {
         for output in outputs {
             let surface = compositor.create_surface(qh);
@@ -55,19 +82,20 @@ impl WaylandState {
     }
 
     pub fn commit_wallpapers(&mut self, renderer: &ImageRenderer, qh: &QueueHandle<Self>) -> Result<usize> {
-        let pending = std::mem::take(&mut self.pending);
+        let pending = mem::take(&mut self.pending);
         let mut count = 0;
 
         for ps in pending {
-            let Some(_serial) = ps.configure_serial else {
-                println!("warning: no configure received for '{}', skipping", ps.output_name);
+            let Some(_) = ps.configure_serial else {
                 continue;
             };
 
             let (w, h) = (ps.width, ps.height);
-            let buffer = ShmBufferBuilder::new(&self.shm_state, w, h, qh)
-                .build_with(|dst| renderer.render_into(dst, w, h))
-                .with_context(|| format!("Render wallpaper for '{}'", ps.output_name))?;
+            let buffer = ShmBuffer::new(&self.shm_state, w, h, qh, |dst| {
+                let target = RenderTarget::new(dst, w, h);
+                renderer.render(target)
+            })
+            .with_context(|| format!("Failed to render wallpaper for {}", ps.output_name))?;
 
             ps.surface.attach(Some(buffer.buffer()), 0, 0);
             ps.surface.damage_buffer(0, 0, w as i32, h as i32);
@@ -76,7 +104,12 @@ impl WaylandState {
             self.surfaces.push(ActiveSurface { _layer_surface: ps.layer_surface, _surface: ps.surface });
             self.buffers.push(buffer);
 
-            println!("wallpaper set for '{}'", ps.output_name);
+            tracing::info!(
+                output = %ps.output_name,
+                width = w,
+                height = h,
+                "Wallpaper set"
+            );
             count += 1;
         }
 

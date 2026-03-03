@@ -13,6 +13,19 @@ pub struct ShmBuffer {
 }
 
 impl ShmBuffer {
+    pub fn new<F>(shm: &Shm, width: u32, height: u32, qh: &QueueHandle<WaylandState>, fill: F) -> Result<Self>
+    where
+        F: FnOnce(&mut [u8]) -> Result<()>,
+    {
+        let layout = BufferLayout::new(width, height);
+
+        let mut pool = RawPool::new(layout.size, shm).context("Failed to create SHM pool")?;
+        fill(pool_bytes(&mut pool, layout.size))?;
+        let buffer = pool.create_buffer(0, layout.width, layout.height, layout.stride, Xrgb8888, (), qh);
+
+        Ok(Self { _pool: pool, buffer })
+    }
+
     pub fn buffer(&self) -> &WlBuffer {
         &self.buffer
     }
@@ -24,35 +37,21 @@ impl Drop for ShmBuffer {
     }
 }
 
-pub struct ShmBufferBuilder<'a> {
-    shm: &'a Shm,
-    width: u32,
-    height: u32,
-    qh: &'a QueueHandle<WaylandState>,
+struct BufferLayout {
+    width: i32,
+    height: i32,
+    stride: i32,
+    size: usize,
 }
 
-impl<'a> ShmBufferBuilder<'a> {
-    pub fn new(shm: &'a Shm, width: u32, height: u32, qh: &'a QueueHandle<WaylandState>) -> Self {
-        Self { shm, width, height, qh }
+impl BufferLayout {
+    fn new(width: u32, height: u32) -> Self {
+        let stride = width as i32 * 4;
+        let size = stride as usize * height as usize;
+        Self { width: width as i32, height: height as i32, stride, size }
     }
+}
 
-    pub fn build_with<F>(self, fill: F) -> Result<ShmBuffer>
-    where
-        F: FnOnce(&mut [u8]) -> Result<()>,
-    {
-        let stride = self.width as i32 * 4;
-        let size = stride as usize * self.height as usize;
-
-        let mut pool = RawPool::new(size, self.shm).context("Failed to create SHM pool")?;
-
-        {
-            let data = pool.mmap();
-            let bytes = unsafe { std::slice::from_raw_parts_mut(data.as_ptr() as *mut u8, size) };
-            fill(bytes)?;
-        }
-
-        let buffer = pool.create_buffer(0, self.width as i32, self.height as i32, stride, Xrgb8888, (), self.qh);
-
-        Ok(ShmBuffer { _pool: pool, buffer })
-    }
+fn pool_bytes(pool: &mut RawPool, size: usize) -> &mut [u8] {
+    unsafe { std::slice::from_raw_parts_mut(pool.mmap().as_ptr() as *mut u8, size) }
 }

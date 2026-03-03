@@ -1,23 +1,18 @@
 use smithay_client_toolkit::compositor::CompositorHandler;
 use smithay_client_toolkit::output::{OutputHandler, OutputState};
-use smithay_client_toolkit::registry::ProvidesRegistryState;
-use smithay_client_toolkit::registry::RegistryState;
-use smithay_client_toolkit::shell::wlr_layer::LayerShellHandler;
-use smithay_client_toolkit::shell::wlr_layer::LayerSurface;
-use smithay_client_toolkit::shell::wlr_layer::LayerSurfaceConfigure;
-use smithay_client_toolkit::shm::Shm;
-use smithay_client_toolkit::shm::ShmHandler;
-use wayland_client::protocol::wl_buffer::{Event as WlBufferEvent, WlBuffer};
-use wayland_client::protocol::wl_output::Transform;
-use wayland_client::protocol::wl_output::WlOutput;
+use smithay_client_toolkit::registry::{ProvidesRegistryState, RegistryState};
+use smithay_client_toolkit::shell::wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure};
+use smithay_client_toolkit::shm::{Shm, ShmHandler};
+use wayland_client::protocol::wl_buffer::{Event, WlBuffer};
+use wayland_client::protocol::wl_output::{Transform, WlOutput};
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, Dispatch, QueueHandle};
 
-use super::state::WaylandState;
+use crate::state::WaylandState;
 
 impl ProvidesRegistryState for WaylandState {
     fn registry(&mut self) -> &mut RegistryState {
-        &mut self.registry_state
+        self.registry()
     }
 
     smithay_client_toolkit::registry_handlers!(OutputState);
@@ -25,7 +20,7 @@ impl ProvidesRegistryState for WaylandState {
 
 impl OutputHandler for WaylandState {
     fn output_state(&mut self) -> &mut OutputState {
-        &mut self.output_state
+        self.outputs()
     }
 
     fn new_output(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: WlOutput) {}
@@ -40,7 +35,7 @@ impl CompositorHandler for WaylandState {
 
     fn transform_changed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &WlSurface, _new_transform: Transform) {}
 
-    fn frame(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &WlSurface, _time: u32) {}
+    fn frame(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &WlSurface, _ime: u32) {}
 
     fn surface_enter(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _surface: &WlSurface, _output: &WlOutput) {}
 
@@ -51,30 +46,27 @@ impl LayerShellHandler for WaylandState {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {}
 
     fn configure(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, layer: &LayerSurface, configure: LayerSurfaceConfigure, serial: u32) {
-        for ps in self.pending.iter_mut() {
-            if ps.layer_surface == *layer {
-                ps.configure_serial = Some(serial);
-                let (w, h) = configure.new_size;
-                if w > 0 && h > 0 {
-                    ps.width = w;
-                    ps.height = h;
-                }
-                println!("configure received: serial={}, size={}x{}, output={}", serial, ps.width, ps.height, ps.output_name);
-                return;
-            }
+        let Some(ps) = self.pending_surfaces().iter_mut().find(|ps| &ps.layer_surface == layer) else {
+            return;
+        };
+        ps.configure_serial = Some(serial);
+
+        let (w, h) = configure.new_size;
+        if w > 0 && h > 0 {
+            ps.width = w;
+            ps.height = h;
         }
-        println!("warning: configure for unknown layer surface");
     }
 }
 
 impl ShmHandler for WaylandState {
     fn shm_state(&mut self) -> &mut Shm {
-        &mut self.shm_state
+        self.shm()
     }
 }
 
 impl Dispatch<WlBuffer, ()> for WaylandState {
-    fn event(_: &mut Self, _: &WlBuffer, _: WlBufferEvent, _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(_state: &mut Self, _buffer: &WlBuffer, _event: Event, _data: &(), _conn: &Connection, _qh: &QueueHandle<Self>) {}
 }
 
 smithay_client_toolkit::delegate_compositor!(WaylandState);
