@@ -5,13 +5,15 @@ mod state;
 mod surface;
 
 use anyhow::{Context, Result};
-
-pub use state::WaylandState;
+use smithay_client_toolkit::output::OutputState;
+use smithay_client_toolkit::registry::RegistryState;
 use wayland_client::Connection;
 
 use crate::config::Config;
 use crate::renderer::ImageRenderer;
 use crate::shm::ShmBufferBuilder;
+
+pub use state::WaylandState;
 
 pub struct WallpaperApp {
     config: Config,
@@ -28,21 +30,29 @@ impl WallpaperApp {
         let (global_list, mut event_queue) = wayland_client::globals::registry_queue_init::<WaylandState>(&conn).map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
         let qh = event_queue.handle();
-        let mut state = WaylandState::default();
 
-        globals::bind_all(&global_list, &qh, &mut state)?;
+        let registry_state = RegistryState::new(&global_list);
+        let output_state = OutputState::new(&global_list, &qh);
+
+        let bound = globals::bind_globals(&global_list, &qh)?;
+
+        let mut state = WaylandState {
+            registry_state,
+            output_state,
+            pending: Vec::new(),
+            buffers: Vec::new(),
+        };
 
         event_queue.roundtrip(&mut state).context("Initial roundtrip")?;
-        event_queue.roundtrip(&mut state).context("Output-done roundtrip")?;
+        event_queue.roundtrip(&mut state).context("Output roundtrip")?;
 
-        let bound = state.globals.as_ref().context("Required Wayland globals not bound")?;
-        let (compositor, shm, layer_shell) = (bound.compositor.clone(), bound.shm.clone(), bound.layer_shell.clone());
+        let (compositor, shm, layer_shell) = (bound.compositor, bound.shm, bound.layer_shell);
 
-        let outputs = output::resolve(&state.outputs);
+        let outputs = output::resolve(&state.output_state);
         if outputs.is_empty() {
-            let total = state.outputs.len();
+            let total = state.output_state.outputs().count();
             if total > 0 {
-                anyhow::bail!("{total} wl_output(s) found but none finished configuring (no wl_output::Done received) — try adding an extra roundtrip");
+                anyhow::bail!("{total} wl_output(s) found but none finished configuring");
             }
             anyhow::bail!("No wl_output objects found");
         }

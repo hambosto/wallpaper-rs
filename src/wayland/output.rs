@@ -1,21 +1,5 @@
-use std::collections::HashMap;
-
+use smithay_client_toolkit::output::OutputState;
 use wayland_client::protocol::wl_output::WlOutput;
-
-#[derive(Default)]
-pub struct OutputInfo {
-    pub handle: Option<WlOutput>,
-    pub name: Option<String>,
-    pub width: u32,
-    pub height: u32,
-    pub configured: bool,
-}
-
-impl OutputInfo {
-    pub fn size(&self) -> Option<(u32, u32)> {
-        (self.configured && self.width > 0 && self.height > 0).then_some((self.width, self.height))
-    }
-}
 
 pub struct ResolvedOutput {
     pub name: String,
@@ -24,22 +8,24 @@ pub struct ResolvedOutput {
     pub height: u32,
 }
 
-pub fn resolve(outputs: &HashMap<u32, OutputInfo>) -> Vec<ResolvedOutput> {
-    outputs
-        .iter()
-        .filter_map(|(id, info)| {
-            let handle = info.handle.clone()?;
-            let (width, height) = info.size().or_else(|| {
-                let name = info.name.as_deref().unwrap_or("?");
-                if !info.configured {
-                    println!("warning: output '{name}' (id={id}) skipped: wl_output::Done not received");
-                } else {
-                    println!("warning: output '{name}' (id={id}) skipped: no valid mode ({}x{})", info.width, info.height);
-                }
-                None
-            })?;
+pub fn resolve(output_state: &OutputState) -> Vec<ResolvedOutput> {
+    output_state
+        .outputs()
+        .filter_map(|output| {
+            let info = output_state.info(&output)?;
+            let name = info.name.clone().unwrap_or_else(|| format!("output-{}", info.id));
 
-            Some(ResolvedOutput { name: info.name.clone().unwrap_or_else(|| format!("output-{id}")), handle, width, height })
+            let (width, height) = info
+                .logical_size
+                .filter(|(w, h)| *w > 0 && *h > 0)
+                .map(|(w, h)| (w as u32, h as u32))
+                .or_else(|| info.modes.iter().find(|m| m.current).map(|m| (m.dimensions.0 as u32, m.dimensions.1 as u32)))
+                .or_else(|| {
+                    println!("warning: output '{name}' (id={}) skipped: no valid mode", info.id);
+                    None
+                })?;
+
+            Some(ResolvedOutput { name, handle: output, width, height })
         })
         .collect()
 }

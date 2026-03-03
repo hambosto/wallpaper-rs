@@ -15,6 +15,7 @@ anyhow = "1.0.102"
 image = { version = "0.25.9", default-features = false, features = ["png", "jpeg"] }
 rustix = { version = "1.1.4", default-features = false, features = ["fs", "mm"] }
 serde = { version = "1.0.228", features = ["derive"] }
+smithay-client-toolkit = "0.20.0"
 toml = "1.0.3"
 wayland-client = "0.31.12"
 wayland-protocols-wlr = { version = "0.3.10", features = ["client"] }
