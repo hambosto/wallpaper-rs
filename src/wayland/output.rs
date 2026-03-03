@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use wayland_client::protocol::wl_output::{Event, WlOutput};
-use wayland_client::{Connection, Dispatch, QueueHandle};
-
-use super::state::WaylandState;
+use wayland_client::protocol::wl_output::WlOutput;
 
 #[derive(Default)]
 pub struct OutputInfo {
@@ -25,21 +22,6 @@ pub struct ResolvedOutput {
     pub handle: WlOutput,
     pub width: u32,
     pub height: u32,
-}
-
-impl Dispatch<WlOutput, u32> for WaylandState {
-    fn event(state: &mut Self, _: &WlOutput, event: Event, id: &u32, _: &Connection, _: &QueueHandle<Self>) {
-        let info = state.outputs.entry(*id).or_default();
-        match event {
-            Event::Name { name } => info.name = Some(name),
-            Event::Mode { width, height, .. } => {
-                info.width = width as u32;
-                info.height = height as u32;
-            }
-            Event::Done => info.configured = true,
-            _ => {}
-        }
-    }
 }
 
 pub fn resolve(outputs: &HashMap<u32, OutputInfo>) -> Vec<ResolvedOutput> {

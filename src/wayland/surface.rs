@@ -1,4 +1,5 @@
 use wayland_client::protocol::wl_compositor::WlCompositor;
+use wayland_client::protocol::wl_surface::Event as WlSurfaceEvent;
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, Dispatch, QueueHandle};
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1};
@@ -48,5 +49,5 @@ impl Dispatch<ZwlrLayerSurfaceV1, usize> for WaylandState {
 }
 
 impl Dispatch<WlSurface, ()> for WaylandState {
-    fn event(_: &mut Self, _: &WlSurface, _: wayland_client::protocol::wl_surface::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(_: &mut Self, _: &WlSurface, _: WlSurfaceEvent, _: &(), _: &Connection, _: &QueueHandle<Self>) {}
 }

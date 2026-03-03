@@ -39,9 +39,9 @@ impl ImageRenderer {
                 let src_idx = ((src_y * src_stride) + (src_x * 4)) as usize;
                 let dst_idx = ((y * w + x) * 4) as usize;
 
-                dst[dst_idx + 0] = src[src_idx + 2];
+                dst[dst_idx] = src[src_idx + 2];
                 dst[dst_idx + 1] = src[src_idx + 1];
-                dst[dst_idx + 2] = src[src_idx + 0];
+                dst[dst_idx + 2] = src[src_idx];
                 dst[dst_idx + 3] = 0xFF;
             }
         }
