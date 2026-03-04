@@ -16,18 +16,18 @@ Wallpaper didn’t follow that model.
 
 Changing it required:
 
-1. Starting a tool manually or through compositor autostart
-2. Restarting it when the image changed
+1. Starting a tool manually or through compositor autostart  
+2. Restarting it when the image changed  
 
 Updating the image path in config and rebuilding wasn’t enough. The wallpaper stayed the same until the process was restarted.
 
-After moving to Niri, I still couldn’t find something that fit cleanly into this workflow.
+After moving to Niri, I couldn’t find a tool that fit cleanly into this workflow.
 
 So this exists to do exactly three things:
 
-* Set a wallpaper on login
-* Be configured declaratively through Home Manager
-* Restart automatically when the image path changes
+- Set a wallpaper on login  
+- Be configured declaratively through Home Manager  
+- Restart automatically when the image path changes  
 
 Nothing more.
 
@@ -35,9 +35,9 @@ Just a small tool that fits my needs. Happy to share in case it’s useful to ot
 
 ## Requirements
 
-* Wayland compositor with layer shell support (Niri, Hyprland, Sway, etc.)
-* `WAYLAND_DISPLAY` set
-* Rust 1.85+
+- Wayland compositor with layer shell support (Niri, Hyprland, Sway, etc.)  
+- `WAYLAND_DISPLAY` set  
+- Rust 1.85+  
 
 ## Installation
 
@@ -51,7 +51,7 @@ Add to your flake inputs:
     wallpaper-rs.url = "github:hambosto/wallpaper-rs";
   };
 }
-```
+````
 
 Use with Home Manager:
 
@@ -80,7 +80,7 @@ cargo build --release
 
 Binary:
 
-```
+```bash
 target/release/wallpaper-rs
 ```
 
@@ -88,54 +88,54 @@ target/release/wallpaper-rs
 
 1. Copy binary:
 
-   ```bash
-   cp target/release/wallpaper-rs ~/.local/bin/
-   ```
+```bash
+cp target/release/wallpaper-rs ~/.local/bin/
+```
 
 2. Create config:
 
-   ```toml
-   # ~/.config/wallpaper-rs/config.toml
-   image = "/absolute/path/to/wallpaper.png"
-   ```
+```toml
+# ~/.config/wallpaper-rs/config.toml
+image = "/absolute/path/to/wallpaper.png"
+```
 
 3. Create systemd service:
 
-   ```
-   # ~/.config/systemd/user/wallpaper-rs.service
-   [Unit]
-   ConditionEnvironment=WAYLAND_DISPLAY
-   After=graphical-session.target
+```ini
+# ~/.config/systemd/user/wallpaper-rs.service
+[Unit]
+ConditionEnvironment=WAYLAND_DISPLAY
+After=graphical-session.target
 
-   [Service]
-   ExecStart=%h/.local/bin/wallpaper-rs
-   Restart=on-failure
-   RestartSec=10
+[Service]
+ExecStart=%h/.local/bin/wallpaper-rs
+Restart=on-failure
+RestartSec=10
 
-   [Install]
-   WantedBy=graphical-session.target
-   ```
+[Install]
+WantedBy=graphical-session.target
+```
 
-4. Enable:
+4. Enable and start:
 
-   ```bash
-   systemctl --user enable --now wallpaper-rs
-   ```
+```bash
+systemctl --user enable --now wallpaper-rs
+```
 
 To change wallpaper:
 
 1. Update the image path
 2. Restart:
 
-   ```bash
-   systemctl --user restart wallpaper-rs
-   ```
+```bash
+systemctl --user restart wallpaper-rs
+```
 
 ## Configuration
 
 Path:
 
-```
+```text
 $XDG_CONFIG_HOME/wallpaper-rs/config.toml
 ```
 
@@ -150,13 +150,13 @@ image = "/path/to/wallpaper.png"
 
 ## How it works
 
-1. Read config
-2. Connect to Wayland
-3. Enumerate outputs
-4. Create a background layer surface per output
-5. Render image to SHM buffers using cover scaling
-6. Commit surfaces
-7. Enter event loop
+1. Reads the config
+2. Connects to Wayland
+3. Enumerates outputs
+4. Creates a background layer surface per output
+5. Renders image to SHM buffers using cover scaling
+6. Commits surfaces
+7. Enters an event loop
 
 The event loop keeps surfaces alive and handles compositor events.
 
