@@ -1,38 +1,35 @@
 use anyhow::{Context, Result};
 use smithay_client_toolkit::shm::Shm;
-use smithay_client_toolkit::shm::raw::RawPool;
-use wayland_client::QueueHandle;
+use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_shm::Format::Xrgb8888;
 
-use crate::state::WaylandState;
-
 pub struct ShmBuffer {
-    buffer: WlBuffer,
+    buffer: Buffer,
+    _pool: SlotPool,
 }
 
 impl ShmBuffer {
-    pub fn new<F>(shm: &Shm, width: u32, height: u32, qh: &QueueHandle<WaylandState>, fill: F) -> Result<(Self, RawPool)>
+    pub fn new<F>(shm: &Shm, width: u32, height: u32, fill: F) -> Result<Self>
     where
         F: FnOnce(&mut [u8]),
     {
         let layout = BufferLayout::new(width, height);
 
-        let mut pool = RawPool::new(layout.size, shm).context("Failed to create SHM pool")?;
-        fill(pool_bytes(&mut pool, layout.size));
-        let buffer = pool.create_buffer(0, layout.width, layout.height, layout.stride, Xrgb8888, (), qh);
+        let mut pool = SlotPool::new(layout.size, shm).context("Failed to create SHM pool")?;
+        let (buffer, canvas) = pool.create_buffer(layout.width, layout.height, layout.stride, Xrgb8888).context("Failed to create buffer")?;
 
-        Ok((Self { buffer }, pool))
+        let canvas = unsafe {
+            let ptr = canvas.as_ptr() as *mut u8;
+            std::slice::from_raw_parts_mut(ptr, layout.size)
+        };
+        fill(canvas);
+
+        Ok(Self { buffer, _pool: pool })
     }
 
     pub fn buffer(&self) -> &WlBuffer {
-        &self.buffer
-    }
-}
-
-impl Drop for ShmBuffer {
-    fn drop(&mut self) {
-        self.buffer.destroy();
+        self.buffer.wl_buffer()
     }
 }
 
@@ -50,8 +47,4 @@ impl BufferLayout {
 
         Self { width: width as i32, height: height as i32, stride, size }
     }
-}
-
-fn pool_bytes(pool: &mut RawPool, size: usize) -> &mut [u8] {
-    unsafe { std::slice::from_raw_parts_mut(pool.mmap().as_ptr() as *mut u8, size) }
 }

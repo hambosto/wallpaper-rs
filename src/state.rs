@@ -4,7 +4,6 @@ use smithay_client_toolkit::output::OutputState;
 use smithay_client_toolkit::registry::RegistryState;
 use smithay_client_toolkit::shell::wlr_layer::{Anchor, Layer, LayerShell, LayerSurface};
 use smithay_client_toolkit::shm::Shm;
-use smithay_client_toolkit::shm::raw::RawPool;
 use wayland_client::QueueHandle;
 use wayland_client::protocol::wl_surface::WlSurface;
 
@@ -29,7 +28,7 @@ pub struct WaylandState {
     shm_state: Shm,
     pending: Vec<PendingSurface>,
     surfaces: Vec<(LayerSurface, WlSurface)>,
-    buffers: Vec<(ShmBuffer, RawPool)>,
+    buffers: Vec<ShmBuffer>,
 }
 
 impl WaylandState {
@@ -74,7 +73,7 @@ impl WaylandState {
         }
     }
 
-    pub fn commit_wallpapers(&mut self, renderer: &ImageRenderer, qh: &QueueHandle<Self>) -> Result<usize> {
+    pub fn commit_wallpapers(&mut self, renderer: &ImageRenderer) -> Result<usize> {
         let pending = std::mem::take(&mut self.pending);
         let mut count = 0;
 
@@ -84,14 +83,14 @@ impl WaylandState {
             };
 
             let (w, h) = (ps.width, ps.height);
-            let (buffer, pool) = ShmBuffer::new(&self.shm_state, w, h, qh, |dst| renderer.render(w, h, dst)).with_context(|| format!("Failed to render wallpaper for {}", ps.output_name))?;
+            let buffer = ShmBuffer::new(&self.shm_state, w, h, |dst| renderer.render(w, h, dst)).with_context(|| format!("Failed to render wallpaper for {}", ps.output_name))?;
 
             ps.surface.attach(Some(buffer.buffer()), 0, 0);
             ps.surface.damage_buffer(0, 0, w as i32, h as i32);
             ps.surface.commit();
 
             self.surfaces.push((ps.layer_surface, ps.surface));
-            self.buffers.push((buffer, pool));
+            self.buffers.push(buffer);
 
             tracing::info!("Wallpaper set: output={}, width={}, height={}", ps.output_name, w, h);
 

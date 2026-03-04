@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
-use wayland_client::{Connection, EventQueue, QueueHandle};
+use smithay_client_toolkit::reexports::calloop::EventLoop;
+use smithay_client_toolkit::reexports::calloop_wayland_source::WaylandSource;
+use wayland_client::{Connection, EventQueue};
 
 use crate::config::Config;
 use crate::globals::BoundGlobals;
@@ -18,7 +20,8 @@ pub fn run(config: &Config) -> Result<()> {
 
 struct Session {
     state: WaylandState,
-    eq: EventQueue<WaylandState>,
+    queue: EventQueue<WaylandState>,
+    connection: Connection,
 }
 
 impl Session {
@@ -26,17 +29,17 @@ impl Session {
         tracing::info!("Connecting to Wayland display");
 
         let conn = Connection::connect_to_env().context("Failed to connect to Wayland display")?;
-        let (globals, eq) = wayland_client::globals::registry_queue_init::<WaylandState>(&conn).context("wayland globals registry")?;
-        let qh = eq.handle();
+        let (globals, queue) = wayland_client::globals::registry_queue_init::<WaylandState>(&conn).context("wayland globals registry")?;
+        let qh = queue.handle();
         let state = BoundGlobals::bind(&globals, &qh)?.into_wayland_state(&globals, &qh);
         tracing::info!("Connected");
 
-        Ok(Self { state, eq })
+        Ok(Self { state, queue, connection: conn })
     }
 
     fn enumerate_outputs(mut self) -> Result<WithOutputs> {
-        self.eq.roundtrip(&mut self.state).context("Initial roundtrip failed")?;
-        self.eq.roundtrip(&mut self.state).context("Output roundtrip failed")?;
+        self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
+        self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
 
         let outputs = ResolvedOutput::resolve_all(&self.state.output_state);
 
@@ -59,32 +62,30 @@ struct WithOutputs {
 
 impl WithOutputs {
     fn create_surfaces(mut self) -> Result<PendingConfigure> {
-        let qh = self.inner.eq.handle();
+        let qh = self.inner.queue.handle();
         let outputs = std::mem::take(&mut self.outputs);
 
         self.inner.state.create_surfaces(&outputs, &qh);
 
-        Ok(PendingConfigure { inner: self.inner, qh })
+        Ok(PendingConfigure { inner: self.inner })
     }
 }
 
 struct PendingConfigure {
     inner: Session,
-    qh: QueueHandle<WaylandState>,
 }
 
 impl PendingConfigure {
     fn wait_for_configure(mut self) -> Result<ReadyToRender> {
         tracing::info!("Waiting for configure");
-        self.inner.eq.roundtrip(&mut self.inner.state).context("Configure roundtrip failed")?;
+        self.inner.queue.roundtrip(&mut self.inner.state).context("Roundtrip failed")?;
 
-        Ok(ReadyToRender { inner: self.inner, qh: self.qh })
+        Ok(ReadyToRender { inner: self.inner })
     }
 }
 
 struct ReadyToRender {
     inner: Session,
-    qh: QueueHandle<WaylandState>,
 }
 
 impl ReadyToRender {
@@ -92,27 +93,39 @@ impl ReadyToRender {
         let renderer = ImageRenderer::open(&config.image)?;
         tracing::info!("Rendering wallpapers: {}", config.image.display());
 
-        match self.inner.state.commit_wallpapers(&renderer, &self.qh)? {
+        match self.inner.state.commit_wallpapers(&renderer)? {
             0 => anyhow::bail!("No wallpapers were set — check your configuration"),
             n => tracing::info!("Wallpapers committed: {n}"),
         }
 
-        self.inner.eq.roundtrip(&mut self.inner.state).context("Final roundtrip failed")?;
+        self.inner.queue.roundtrip(&mut self.inner.state).context("Roundtrip failed")?;
 
-        Ok(Active { inner: self.inner })
+        Ok(Active { state: self.inner.state, queue: self.inner.queue, connection: self.inner.connection })
     }
 }
 
 struct Active {
-    inner: Session,
+    state: WaylandState,
+    queue: EventQueue<WaylandState>,
+    connection: Connection,
 }
 
 impl Active {
     fn event_loop(mut self) -> Result<()> {
         tracing::info!("Entering event loop");
 
-        loop {
-            self.inner.eq.blocking_dispatch(&mut self.inner.state).context("Wayland dispatch error")?;
-        }
+        ctrlc::set_handler(|| {
+            tracing::info!("Exiting");
+            std::process::exit(0);
+        })?;
+
+        let mut event_loop: EventLoop<WaylandState> = EventLoop::try_new().context("Failed to create event loop")?;
+        WaylandSource::new(self.connection, self.queue).insert(event_loop.handle()).context("Failed to insert Wayland source")?;
+
+        event_loop.run(None, &mut self.state, |_| {}).context("Event loop error")?;
+
+        tracing::info!("Exiting");
+
+        Ok(())
     }
 }
