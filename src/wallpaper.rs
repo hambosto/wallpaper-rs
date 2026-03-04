@@ -10,40 +10,39 @@ use crate::renderer::ImageRenderer;
 use crate::state::WaylandState;
 
 pub fn run(config: &Config) -> Result<()> {
-    let session = Session::connect()?;
-    let with_outputs = session.enumerate_outputs()?;
-    let pending = with_outputs.create_surfaces()?;
-    let ready = pending.wait_for_configure()?;
-    let active = ready.render(config)?;
-    active.event_loop()
+    let mut session = Session::connect()?;
+    session.enumerate_outputs()?;
+    session.create_surfaces()?;
+    session.render(config)?;
+    session.event_loop()
 }
 
 struct Session {
     state: WaylandState,
     queue: EventQueue<WaylandState>,
     connection: Connection,
+    outputs: Vec<ResolvedOutput>,
 }
 
 impl Session {
     fn connect() -> Result<Self> {
         tracing::info!("Connecting to Wayland display");
 
-        let conn = Connection::connect_to_env().context("Failed to connect to Wayland display")?;
-        let (globals, queue) = wayland_client::globals::registry_queue_init::<WaylandState>(&conn).context("wayland globals registry")?;
+        let connection = Connection::connect_to_env().context("Failed to connect to Wayland display")?;
+        let (globals, queue) = wayland_client::globals::registry_queue_init::<WaylandState>(&connection).context("Failed to init globals registry")?;
         let qh = queue.handle();
         let state = BoundGlobals::bind(&globals, &qh)?.into_wayland_state(&globals, &qh);
-        tracing::info!("Connected");
 
-        Ok(Self { state, queue, connection: conn })
+        tracing::info!("Connected");
+        Ok(Self { state, queue, connection, outputs: Vec::new() })
     }
 
-    fn enumerate_outputs(mut self) -> Result<WithOutputs> {
+    fn enumerate_outputs(&mut self) -> Result<()> {
         self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
         self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
+        self.outputs = ResolvedOutput::resolve_all(&self.state.output_state);
 
-        let outputs = ResolvedOutput::resolve_all(&self.state.output_state);
-
-        match outputs.len() {
+        match self.outputs.len() {
             0 => match self.state.output_state.outputs().count() {
                 0 => anyhow::bail!("No wl_output objects found — no displays detected"),
                 n => anyhow::bail!("{n} wl_output(s) found but none finished configuring"),
@@ -51,73 +50,31 @@ impl Session {
             n => tracing::info!("Outputs resolved: {n}"),
         }
 
-        Ok(WithOutputs { inner: self, outputs })
+        Ok(())
     }
-}
 
-struct WithOutputs {
-    inner: Session,
-    outputs: Vec<ResolvedOutput>,
-}
-
-impl WithOutputs {
-    fn create_surfaces(mut self) -> Result<PendingConfigure> {
-        let qh = self.inner.queue.handle();
-        let outputs = std::mem::take(&mut self.outputs);
-
-        self.inner.state.create_surfaces(&outputs, &qh);
-
-        Ok(PendingConfigure { inner: self.inner })
+    fn create_surfaces(&mut self) -> Result<()> {
+        let qh = self.queue.handle();
+        self.state.create_surfaces(&self.outputs, &qh);
+        self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
+        Ok(())
     }
-}
 
-struct PendingConfigure {
-    inner: Session,
-}
-
-impl PendingConfigure {
-    fn wait_for_configure(mut self) -> Result<ReadyToRender> {
-        tracing::info!("Waiting for configure");
-        self.inner.queue.roundtrip(&mut self.inner.state).context("Roundtrip failed")?;
-
-        Ok(ReadyToRender { inner: self.inner })
-    }
-}
-
-struct ReadyToRender {
-    inner: Session,
-}
-
-impl ReadyToRender {
-    fn render(mut self, config: &Config) -> Result<Active> {
+    fn render(&mut self, config: &Config) -> Result<()> {
         let renderer = ImageRenderer::open(&config.image)?;
         tracing::info!("Rendering wallpapers: {}", config.image.display());
 
-        match self.inner.state.commit_wallpapers(&renderer)? {
+        match self.state.commit_wallpapers(&renderer)? {
             0 => anyhow::bail!("No wallpapers were set — check your configuration"),
             n => tracing::info!("Wallpapers committed: {n}"),
         }
 
-        self.inner.queue.roundtrip(&mut self.inner.state).context("Roundtrip failed")?;
-
-        Ok(Active { state: self.inner.state, queue: self.inner.queue, connection: self.inner.connection })
+        self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
+        Ok(())
     }
-}
 
-struct Active {
-    state: WaylandState,
-    queue: EventQueue<WaylandState>,
-    connection: Connection,
-}
-
-impl Active {
     fn event_loop(mut self) -> Result<()> {
         tracing::info!("Entering event loop");
-
-        ctrlc::set_handler(|| {
-            tracing::info!("Exiting");
-            std::process::exit(0);
-        })?;
 
         let mut event_loop: EventLoop<WaylandState> = EventLoop::try_new().context("Failed to create event loop")?;
         WaylandSource::new(self.connection, self.queue).insert(event_loop.handle()).context("Failed to insert Wayland source")?;
