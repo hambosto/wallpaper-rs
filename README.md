@@ -1,47 +1,42 @@
 # wallpaper-rs
 
-A lightweight, daemonless wallpaper tool for Wayland compositors, written in Rust.
+A minimal wallpaper daemon for Wayland, written in Rust.
 
-## Motivation
+## What it does
 
-After moving to Niri on NixOS, I wanted a wallpaper tool that can be declared in my configuration and applied automatically after a rebuild. With Home Manager, changing the wallpaper in `configuration.nix` and rebuilding should be enough - no manual intervention needed.
+Sets a wallpaper image on all connected outputs using the layer shell protocol. That's it. No animations, no effects, no caching daemon.
 
-The key requirements were:
-- **Declarative** - configured via Nix/Home Manager, wallpaper persists across rebuilds
-- **Lightweight** - like `swww`
-- **Daemonless** - like `hyprpaper`
+## Why I built this
 
-When the config changes (e.g., new wallpaper image path), the systemd service restarts automatically via `X-Restart-Triggers`, ensuring the new wallpaper is applied right after a NixOS rebuild.
+On NixOS, my entire setup is declarative. Window manager, terminal, theme, keybindings — everything lives in my configuration.nix. Rebuild the system, and I get the same environment back.
 
-This is a simple wallpaper setter. No fancy features, no daemons running in the background. Just set wallpaper and forget.
+Wallpaper was different. I had to:
+1. Start a wallpaper tool manually or via compositor autostart
+2. Remember to restart it when I wanted to change the wallpaper
 
-## Features
+After moving to Niri (which has its own way of handling wallpaper), I couldn't find a tool that fit nicely into my NixOS workflow. Most tools either:
+- Run as a daemon with caching (more complexity than I need)
+- Are tied to a specific compositor
+- Don't integrate well with Home Manager's declarative model
 
-- **Minimal dependencies** - Uses only essential Wayland protocols
-- **Daemonless** - Runs once on login, stays alive by processing Wayland events
-- **Declarative configuration** - Configure via config file or Nix/Home Manager
-- **Multi-monitor support** - Creates a separate layer surface for each connected output
-- **Cover scaling** - Image is scaled to cover the entire screen (center-cropped)
-- **Memory efficient** - Uses memfd for zero-copy buffer sharing
-- **Fast startup** - Minimal initialization, renders directly to SHM buffers
+So I wrote something minimal that:
+- Just sets an image on login
+- Can be configured via Home Manager
+- Restarts automatically when the image path changes
+
+That's it. No caching, no animations, no configuration beyond an image path. It works for my NixOS setup, and that's why it exists.
+
+If you need animations or effects, swww or hyprpaper are better choices.
 
 ## Requirements
-- **Wayland compositor** with:
-  - Layer Shell protocol (`zwlr_layer_shell_v1`)
-  - Shared Memory protocol (`wl_shm`)
-  - Output management (`wl_output`)
-- **Wayland session** with `WAYLAND_DISPLAY` set
 
-### Tested Compositors
-- Niri
-
-## Supported Image Formats
-- PNG
-- JPEG/JPG
+- Wayland compositor with layer shell support (Niri, Hyprland, Sway, etc.)
+- `WAYLAND_DISPLAY` environment variable set
+- Rust 1.85+
 
 ## Installation
 
-### Nix (Recommended)
+### Nix (recommended)
 
 Add to your flake inputs:
 ```nix
@@ -52,10 +47,8 @@ Add to your flake inputs:
 }
 ```
 
-Then use in your Home Manager configuration:
+Use with Home Manager:
 ```nix
-{ inputs, ... }:
-
 {
   imports = [ inputs.wallpaper-rs.homeManagerModules.default ];
 
@@ -66,50 +59,30 @@ Then use in your Home Manager configuration:
 }
 ```
 
-This automatically:
-- Generates config at `$XDG_CONFIG_HOME/wallpaper-rs/config.toml`
-- Starts wallpaper on Wayland login via systemd
-- Restarts on failure
-- Restarts after NixOS rebuild when the image path changes (via `X-Restart-Triggers`)
+Home Manager handles:
+- Creating the config file at `$XDG_CONFIG_HOME/wallpaper-rs/config.toml`
+- Setting up a systemd user service
+- Adding `X-Restart-Triggers` so the service restarts when you change the image path
 
-### Build from Source
-
-Requirements:
-- Rust 1.85+ (edition 2024)
-- Cargo
+### From source
 
 ```bash
-cargo install --git https://github.com/hambosto/wallpaper-rs
-```
-
-Or clone and build:
-```bash
-git clone https://github.com/hambosto/wallpaper-rs
-cd wallpaper-rs
 cargo build --release
+# binary at target/release/wallpaper-rs
 ```
 
-The binary will be at `target/release/wallpaper-rs`.
+### Manual setup
 
-### Manual Installation
-
-1. Build the binary (see above)
-2. Copy to your PATH:
-   ```bash
-   cp target/release/wallpaper-rs ~/.local/bin/
+1. Copy binary to `~/.local/bin/wallpaper-rs`
+2. Create config at `~/.config/wallpaper-rs/config.toml`:
+   ```toml
+   image = "/absolute/path/to/wallpaper.png"
    ```
-3. Create the config directory:
-   ```bash
-   mkdir -p ~/.config/wallpaper-rs
-   ```
-4. Create config file (see Configuration section)
-5. Create a systemd user service at `~/.config/systemd/user/wallpaper-rs.service`:
-
+3. Create `~/.config/systemd/user/wallpaper-rs.service`:
    ```
    [Unit]
    ConditionEnvironment=WAYLAND_DISPLAY
    After=graphical-session.target
-   PartOf=graphical-session.target
 
    [Service]
    ExecStart=%h/.local/bin/wallpaper-rs
@@ -119,105 +92,66 @@ The binary will be at `target/release/wallpaper-rs`.
    [Install]
    WantedBy=graphical-session.target
    ```
-
-6. Enable and start the service:
+4. Enable and start:
    ```bash
    systemctl --user enable --now wallpaper-rs
    ```
 
-   After changing the wallpaper image in config, restart the service:
-   ```bash
-   systemctl --user restart wallpaper-rs
-   ```
+To change your wallpaper:
+1. Edit the image path in the config
+2. Restart the service: `systemctl --user restart wallpaper-rs`
 
 ## Configuration
 
-The config file is read from `$XDG_CONFIG_HOME/wallpaper-rs/config.toml`. If `$XDG_CONFIG_HOME` is not set, it defaults to `$HOME/.config`.
-
-### Config Options
+Config path: `$XDG_CONFIG_HOME/wallpaper-rs/config.toml` (defaults to `~/.config/wallpaper-rs/config.toml`)
 
 ```toml
-# Path to the wallpaper image (required)
-# Must be an absolute path
-# Supported formats: PNG, JPEG
-image = "/absolute/path/to/wallpaper.png"
+image = "/path/to/wallpaper.png"
 ```
 
-### Example Config
+- Image path must be absolute
+- Supported formats: PNG, JPEG
 
-```toml
-image = "/home/username/Pictures/wallpaper.png"
-```
+## How it works
 
-## Usage
+1. Reads the config file
+2. Connects to the Wayland display
+3. Enumerates all connected outputs
+4. Creates a layer surface (background) for each output
+5. Renders the image to SHM buffers using cover scaling (fills screen, crops excess from center)
+6. Commits the surfaces
+7. Enters an event loop
 
-### Automatic (Home Manager)
+The event loop processes Wayland events, which keeps the surfaces alive. If your compositor recreates the surfaces (which happens in some scenarios), the event loop handles it and the wallpaper stays visible.
 
-The wallpaper is automatically set on login via the systemd service.
+## Troubleshooting
 
-### Manual
+**WAYLAND_DISPLAY not set**
+- You're not in a Wayland session
 
-To manually run:
-```bash
-wallpaper-rs
-```
+**Failed to read config**
+- Config file doesn't exist or isn't readable
 
-### Troubleshooting
+**image must be an absolute path**
+- Use an absolute path like `/home/user/pictures/wallpaper.png`, not a relative one
 
-**"WAYLAND_DISPLAY not set" error**
-- Ensure you are running in a Wayland session
-- Check that `echo $WAYLAND_DISPLAY` returns a value
-
-**"Failed to read config" error**
-- Verify the config file exists at `$XDG_CONFIG_HOME/wallpaper-rs/config.toml`
-- Check file permissions
-
-**"image must be an absolute path" error**
-- The image path in config must be absolute (starting with `/`)
-- Relative paths are not supported
-
-**"Cannot access image" error**
-- Verify the image file exists
-- Check file permissions
+**Cannot access image**
+- File doesn't exist or permissions are wrong
 
 **Wallpaper doesn't appear**
-- Ensure your compositor supports layer shell protocol
-- Check compositor logs for protocol errors
-- Verify only one wallpaper daemon is running
+- Your compositor might not support layer shell. Check compositor logs.
+- Another wallpaper tool might be running and covering it
 
-**Image appears stretched or cropped**
-- This is expected behavior - wallpaper-rs uses "cover" scaling
-- The image is scaled to fill the entire screen, with overflow cropped from center
+**Image looks wrong**
+- Cover scaling fills the entire screen by cropping from the center. The image is never stretched or distorted. This is by design.
 
-## How It Works
+## Environment variables
 
-1. Reads config from `$XDG_CONFIG_HOME/wallpaper-rs/config.toml`
-2. Connects to Wayland display via `WAYLAND_DISPLAY`
-3. Binds required Wayland protocols: compositor, SHM, layer shell, and outputs
-4. Creates layer surfaces (background) for each connected monitor
-5. Renders the image directly to SHM buffers using memfd
-6. Attaches buffers to surfaces and commits
-7. Enters blocking event loop to keep surfaces alive
-
-The wallpaper runs once per login and stays alive by processing Wayland events. This ensures the wallpaper persists even if the compositor re-creates surfaces.
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `WAYLAND_DISPLAY` | Yes | Wayland display socket name |
-| `XDG_CONFIG_HOME` | No | Config directory (default: `$HOME/.config`) |
-
-## Comparison with Other Tools
-
-| Feature | wallpaper-rs | swww | hyprpaper |
-|---------|--------------|------|-----------|
-| Daemonless | ✓ | ✗ | ✓ |
-| Multi-monitor | ✓ | ✓ | ✓ |
-| Animations | ✗ | ✓ | ✓ |
-| Zero-copy | ✓ | ✓ | ✓ |
-| Memory usage | Very low | Low | Low |
+| Variable | Required | Default |
+|----------|----------|---------|
+| `WAYLAND_DISPLAY` | Yes | - |
+| `XDG_CONFIG_HOME` | No | `$HOME/.config` |
 
 ## License
 
-MIT
+[MIT](LICENSE) — see the LICENSE file for full text.
