@@ -70,7 +70,7 @@ fn cover_scale(src_w: u32, src_h: u32, dst_w: u32, dst_h: u32) -> f64 {
 }
 
 fn centring_offset(src_dim: u32, dst_dim: u32, scale: f64) -> f64 {
-    ((src_dim as f64 * scale) - dst_dim as f64) / 2.0
+    (src_dim as f64).mul_add(scale, -(dst_dim as f64)) / 2.0
 }
 
 fn src_coord(dst: u32, offset: f64, scale: f64, src_dim: u32) -> u32 {

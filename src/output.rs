@@ -23,7 +23,7 @@ impl ResolvedOutput {
 }
 
 fn output_name(info: &OutputInfo) -> String {
-    info.name.clone().unwrap_or_else(|| format!("output-{}", info.id))
+    info.name.as_deref().map(|s| s.to_string()).unwrap_or_else(|| format!("output-{}", info.id))
 }
 
 fn output_dimensions(info: &OutputInfo) -> Option<(u32, u32)> {

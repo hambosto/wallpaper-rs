@@ -8,22 +8,21 @@ use wayland_client::protocol::wl_shm::Format::Xrgb8888;
 use crate::state::WaylandState;
 
 pub struct ShmBuffer {
-    _pool: RawPool,
     buffer: WlBuffer,
 }
 
 impl ShmBuffer {
-    pub fn new<F>(shm: &Shm, width: u32, height: u32, qh: &QueueHandle<WaylandState>, fill: F) -> Result<Self>
+    pub fn new<F>(shm: &Shm, width: u32, height: u32, qh: &QueueHandle<WaylandState>, fill: F) -> Result<(Self, RawPool)>
     where
-        F: FnOnce(&mut [u8]) -> Result<()>,
+        F: FnOnce(&mut [u8]),
     {
         let layout = BufferLayout::new(width, height);
 
         let mut pool = RawPool::new(layout.size, shm).context("Failed to create SHM pool")?;
-        fill(pool_bytes(&mut pool, layout.size))?;
+        fill(pool_bytes(&mut pool, layout.size));
         let buffer = pool.create_buffer(0, layout.width, layout.height, layout.stride, Xrgb8888, (), qh);
 
-        Ok(Self { _pool: pool, buffer })
+        Ok((Self { buffer }, pool))
     }
 
     pub fn buffer(&self) -> &WlBuffer {
@@ -48,6 +47,7 @@ impl BufferLayout {
     fn new(width: u32, height: u32) -> Self {
         let stride = width as i32 * 4;
         let size = stride as usize * height as usize;
+
         Self { width: width as i32, height: height as i32, stride, size }
     }
 }

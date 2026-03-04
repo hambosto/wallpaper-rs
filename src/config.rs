@@ -17,7 +17,7 @@ impl Config {
         log::info!("Loading configuration: {}", path.display());
 
         let raw = std::fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
-        let config: Config = toml::from_str(&raw).with_context(|| format!("Failed to parse {}", path.display()))?;
+        let config: Self = toml::from_str(&raw).with_context(|| format!("Failed to parse {}", path.display()))?;
         let image = validated_image_path(&config.image)?;
 
         log::info!("Configuration loaded: {}", image.display());
