@@ -10,8 +10,10 @@ mod state;
 mod wallpaper;
 
 fn main() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("wallpaper_rs=info")).init();
-    log::info!("Starting wallpaper-rs");
+    let subscriber = tracing_subscriber::fmt().with_file(true).with_line_number(true).finish();
+    tracing::subscriber::set_global_default(subscriber)?;
+
+    tracing::info!("Starting wallpaper-rs");
 
     std::env::var("WAYLAND_DISPLAY").context("WAYLAND_DISPLAY not set — are you in a Wayland session?")?;
 

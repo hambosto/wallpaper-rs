@@ -93,7 +93,7 @@ impl WaylandState {
             self.surfaces.push((ps.layer_surface, ps.surface));
             self.buffers.push((buffer, pool));
 
-            log::info!("Wallpaper set: output={}, width={}, height={}", ps.output_name, w, h);
+            tracing::info!("Wallpaper set: output={}, width={}, height={}", ps.output_name, w, h);
 
             count += 1;
         }

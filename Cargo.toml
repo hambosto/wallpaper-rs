@@ -12,10 +12,10 @@ panic = "abort"
 
 [dependencies]
 anyhow = "1.0.102"
-env_logger = { version = "0.11.9", default-features = false, features = ["auto-color", "humantime"] }
 image = { version = "0.25.9", default-features = false, features = ["jpeg", "png"] }
-log = "0.4.29"
 serde = { version = "1.0.228", features = ["derive"] }
 smithay-client-toolkit = "0.20.0"
 toml = "1.0.3"
+tracing = { version = "0.1.44", default-features = false, features = ["tracing-attributes"] }
+tracing-subscriber = { version = "0.3.22", default-features = false, features = ["ansi"] }
 wayland-client = "0.31.12"
