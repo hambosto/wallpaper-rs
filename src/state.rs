@@ -85,7 +85,7 @@ impl WaylandState {
             let (w, h) = (ps.width, ps.height);
             let buffer = ShmBuffer::new(&self.shm_state, w, h, |dst| renderer.render(w, h, dst)).with_context(|| format!("Failed to render wallpaper for {}", ps.output_name))?;
 
-            ps.surface.attach(Some(buffer.buffer()), 0, 0);
+            ps.surface.attach(Some(buffer.wl_buffer()), 0, 0);
             ps.surface.damage_buffer(0, 0, w as i32, h as i32);
             ps.surface.commit();
 
