@@ -3,13 +3,6 @@ name = "wallpaper-rs"
 version = "26.3.0"
 edition = "2024"
 
-[profile.release]
-opt-level = 3
-lto = "fat"
-codegen-units = 1
-strip = true
-panic = "abort"
-
 [dependencies]
 anyhow = "1.0.102"
 image = { version = "0.25.9", default-features = false, features = ["jpeg", "png"] }
@@ -19,3 +12,10 @@ toml = "1.0.6"
 tracing = { version = "0.1.44", default-features = false, features = ["tracing-attributes"] }
 tracing-subscriber = { version = "0.3.22", default-features = false, features = ["ansi"] }
 wayland-client = "0.31.13"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
