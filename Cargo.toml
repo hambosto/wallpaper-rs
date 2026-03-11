@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
-image = { version = "0.25.9", default-features = false, features = ["jpeg", "png"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 serde = { version = "1.0.228", features = ["derive"] }
 smithay-client-toolkit = "0.20.0"
 toml = "1.0.6"
