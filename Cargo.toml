@@ -8,7 +8,7 @@ anyhow = "1.0.102"
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 serde = { version = "1.0.228", features = ["derive"] }
 smithay-client-toolkit = "0.20.0"
-toml = "1.0.7"
+toml = "1.1.0"
 tracing = { version = "0.1.44", default-features = false, features = ["tracing-attributes"] }
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["ansi"] }
 wayland-client = "0.31.13"
