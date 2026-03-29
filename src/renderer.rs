@@ -7,6 +7,8 @@ pub struct ImageRenderer {
     src: RgbaImage,
 }
 
+const OPAQUE_ALPHA: u8 = 0xFF;
+
 impl ImageRenderer {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let src = ImageReader::open(path.as_ref()).context("Open image")?.decode().context("Decode image")?.into_rgba8();
@@ -46,5 +48,5 @@ fn write_bgra(dst: &mut [u8], x: u32, y: u32, width: u32, [r, g, b, _]: [u8; 4])
     dst[base] = b;
     dst[base + 1] = g;
     dst[base + 2] = r;
-    dst[base + 3] = 0xFF;
+    dst[base + 3] = OPAQUE_ALPHA;
 }

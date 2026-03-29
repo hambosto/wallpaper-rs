@@ -78,9 +78,9 @@ impl WaylandState {
         let mut count = 0;
 
         for ps in pending {
-            let Some(_) = ps.configure_serial else {
+            if ps.configure_serial.is_none() {
                 continue;
-            };
+            }
 
             let (w, h) = (ps.width, ps.height);
             let buffer = ShmBuffer::new(&self.shm_state, w, h, |dst| renderer.render(w, h, dst)).with_context(|| format!("Failed to render wallpaper for {}", ps.output_name))?;

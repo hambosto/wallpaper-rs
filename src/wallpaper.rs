@@ -38,8 +38,9 @@ impl Session {
     }
 
     fn enumerate_outputs(&mut self) -> Result<()> {
-        self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
-        self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
+        for _ in 0..2 {
+            self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
+        }
         self.outputs = ResolvedOutput::resolve_all(&self.state.output_state);
 
         match self.outputs.len() {
