@@ -4,7 +4,8 @@ use smithay_client_toolkit::registry::{ProvidesRegistryState, RegistryState};
 use smithay_client_toolkit::shell::wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure};
 use smithay_client_toolkit::shm::{Shm, ShmHandler};
 use wayland_client::protocol::wl_buffer::{Event, WlBuffer};
-use wayland_client::protocol::wl_output::{Transform, WlOutput};
+use wayland_client::protocol::wl_output::Transform;
+use wayland_client::protocol::wl_output::WlOutput;
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, Dispatch, QueueHandle};
 
@@ -12,7 +13,7 @@ use crate::state::WaylandState;
 
 impl ProvidesRegistryState for WaylandState {
     fn registry(&mut self) -> &mut RegistryState {
-        self.registry()
+        &mut self.registry_state
     }
 
     smithay_client_toolkit::registry_handlers!(OutputState);
@@ -20,7 +21,7 @@ impl ProvidesRegistryState for WaylandState {
 
 impl OutputHandler for WaylandState {
     fn output_state(&mut self) -> &mut OutputState {
-        self.outputs()
+        &mut self.output_state
     }
 
     fn new_output(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _output: WlOutput) {}
@@ -61,7 +62,7 @@ impl LayerShellHandler for WaylandState {
 
 impl ShmHandler for WaylandState {
     fn shm_state(&mut self) -> &mut Shm {
-        self.shm()
+        &mut self.shm_state
     }
 }
 

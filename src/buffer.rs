@@ -20,8 +20,7 @@ impl ShmBuffer {
         let mut pool = SlotPool::new(size, shm).context("Failed to create SHM pool")?;
 
         let (buffer, canvas) = pool.create_buffer(width as i32, height as i32, stride as i32, Xrgb8888).context("Failed to allocate buffer slot")?;
-
-        fill(unsafe { std::slice::from_raw_parts_mut(canvas.as_mut_ptr().cast::<u8>(), size) });
+        fill(canvas);
 
         Ok(Self { buffer, _pool: pool })
     }

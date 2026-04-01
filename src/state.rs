@@ -21,11 +21,11 @@ pub struct PendingSurface {
 }
 
 pub struct WaylandState {
-    registry_state: RegistryState,
+    pub registry_state: RegistryState,
     pub output_state: OutputState,
-    compositor_state: CompositorState,
-    layer_shell_state: LayerShell,
-    shm_state: Shm,
+    pub compositor_state: CompositorState,
+    pub layer_shell_state: LayerShell,
+    pub shm_state: Shm,
     pending: Vec<PendingSurface>,
     surfaces: Vec<(LayerSurface, WlSurface)>,
     buffers: Vec<ShmBuffer>,
@@ -36,32 +36,12 @@ impl WaylandState {
         Self { registry_state, output_state, compositor_state, layer_shell_state, shm_state, pending: Vec::new(), surfaces: Vec::new(), buffers: Vec::new() }
     }
 
-    pub fn compositor(&self) -> &CompositorState {
-        &self.compositor_state
-    }
-
-    pub fn registry(&mut self) -> &mut RegistryState {
-        &mut self.registry_state
-    }
-
-    pub fn outputs(&mut self) -> &mut OutputState {
-        &mut self.output_state
-    }
-
-    pub fn shm(&mut self) -> &mut Shm {
-        &mut self.shm_state
-    }
-
-    pub fn pending_surfaces(&mut self) -> &mut [PendingSurface] {
-        &mut self.pending
-    }
-
-    pub fn create_surfaces(&mut self, outputs: &[ResolvedOutput], qh: &QueueHandle<Self>) {
+    pub fn create_surfaces(&mut self, outputs: &[ResolvedOutput], queue_handle: &QueueHandle<Self>) {
         for output in outputs {
-            let surface = self.compositor().create_surface(qh);
+            let surface = self.compositor_state.create_surface(queue_handle);
             let layer_surface = self
                 .layer_shell_state
-                .create_layer_surface(qh, surface.clone(), Layer::Background, Some("wallpaper-rs"), Some(&output.handle));
+                .create_layer_surface(queue_handle, surface.clone(), Layer::Background, Some("wallpaper-rs"), Some(&output.handle));
 
             layer_surface.set_anchor(Anchor::all());
             layer_surface.set_exclusive_zone(-1);
@@ -82,21 +62,27 @@ impl WaylandState {
                 continue;
             }
 
-            let (w, h) = (ps.width, ps.height);
-            let buffer = ShmBuffer::new(&self.shm_state, w, h, |dst| renderer.render(w, h, dst)).with_context(|| format!("Failed to render wallpaper for {}", ps.output_name))?;
+            let buffer = ShmBuffer::new(&self.shm_state, ps.width, ps.height, |dst| {
+                renderer.render(ps.width, ps.height, dst);
+            })
+            .with_context(|| format!("Failed to render wallpaper for {}", ps.output_name))?;
 
             ps.surface.attach(Some(buffer.wl_buffer()), 0, 0);
-            ps.surface.damage_buffer(0, 0, w as i32, h as i32);
+            ps.surface.damage_buffer(0, 0, ps.width as i32, ps.height as i32);
             ps.surface.commit();
 
             self.surfaces.push((ps.layer_surface, ps.surface));
             self.buffers.push(buffer);
 
-            tracing::info!("Wallpaper set: output={}, width={}, height={}", ps.output_name, w, h);
+            tracing::info!("Wallpaper set: output={}, width={}, height={}", ps.output_name, ps.width, ps.height);
 
             count += 1;
         }
 
         Ok(count)
+    }
+
+    pub fn pending_surfaces(&mut self) -> &mut [PendingSurface] {
+        &mut self.pending
     }
 }

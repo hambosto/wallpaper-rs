@@ -16,7 +16,7 @@ pub struct BoundGlobals {
 }
 
 impl BoundGlobals {
-    pub fn bind(globals: &GlobalList, qh: &QueueHandle<WaylandState>) -> Result<Self> {
+    pub fn new(globals: &GlobalList, qh: &QueueHandle<WaylandState>) -> Result<Self> {
         Ok(Self {
             compositor: CompositorState::bind(globals, qh).context("wl_compositor not available")?,
             shm: Shm::bind(globals, qh).context("wl_shm not available")?,

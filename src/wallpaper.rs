@@ -30,17 +30,15 @@ impl Session {
 
         let connection = Connection::connect_to_env().context("Failed to connect to Wayland display")?;
         let (globals, queue) = wayland_client::globals::registry_queue_init::<WaylandState>(&connection).context("Failed to init globals registry")?;
-        let qh = queue.handle();
-        let state = BoundGlobals::bind(&globals, &qh)?.into_wayland_state(&globals, &qh);
+        let queue_handle = queue.handle();
+        let state = BoundGlobals::new(&globals, &queue_handle)?.into_wayland_state(&globals, &queue_handle);
 
         tracing::info!("Connected");
         Ok(Self { state, queue, connection, outputs: Vec::new() })
     }
 
     fn enumerate_outputs(&mut self) -> Result<()> {
-        for _ in 0..2 {
-            self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
-        }
+        self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
         self.outputs = ResolvedOutput::resolve_all(&self.state.output_state);
 
         match self.outputs.len() {
@@ -55,8 +53,8 @@ impl Session {
     }
 
     fn create_surfaces(&mut self) -> Result<()> {
-        let qh = self.queue.handle();
-        self.state.create_surfaces(&self.outputs, &qh);
+        let queue_handle = self.queue.handle();
+        self.state.create_surfaces(&self.outputs, &queue_handle);
         self.queue.roundtrip(&mut self.state).context("Roundtrip failed")?;
         Ok(())
     }
