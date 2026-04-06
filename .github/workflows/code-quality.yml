@@ -19,6 +19,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev pkg-config
+
       - name: Install Rust nightly toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
