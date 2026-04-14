@@ -1,5 +1,3 @@
-# wallpaper-rs
-
 A minimal wallpaper daemon for Wayland, written in Rust.
 
 ## What it does
