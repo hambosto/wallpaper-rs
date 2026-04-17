@@ -1,0 +1,50 @@
+name: Rust CI (Nix + Cachix)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & Test (Rust + Nix)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev pkg-config
+
+      - name: Install Nix package manager
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Configure Cachix binary cache
+        uses: cachix/cachix-action@v17
+        with:
+          name: ${{ secrets.CACHIX_CACHE_NAME }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Install Rust toolchain (nightly)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+          cache: false
+
+      - name: Verify code formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy static analysis
+        run: cargo clippy --all-targets --all-features
+
+      - name: Execute test suite
+        run: cargo test --all-features
+
+      - name: Build and push artifacts to Cachix cache
+        run: |
+          nix-store --query --requisites $(nix-store --query --deriver $(nix build --print-out-paths .)) \
+          | cachix push ${{ secrets.CACHIX_CACHE_NAME }}
