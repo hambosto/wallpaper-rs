@@ -12,9 +12,7 @@ permissions:
 jobs:
   update:
     name: Update Dependencies (Flake Lock)
-
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -37,12 +35,6 @@ jobs:
           pr-labels: |
             dependencies
             automated
-
-      - name: Build and push dependencies to Cachix cache
-        if: ${{ steps.update.outputs.pull-request-number != '' }}
-        run: |
-          nix-store --query --requisites $(nix-store --query --deriver $(nix build --print-out-paths .)) \
-          | cachix push ${{ secrets.CACHIX_CACHE_NAME }}
 
       - name: Auto-merge dependency update PR
         if: ${{ steps.update.outputs.pull-request-number != '' }}
