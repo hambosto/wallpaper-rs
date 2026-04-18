@@ -46,5 +46,4 @@ jobs:
 
       - name: Build and push artifacts to Cachix cache
         run: |
-          nix-store --query --requisites $(nix-store --query --deriver $(nix build --print-out-paths .)) \
-          | cachix push ${{ secrets.CACHIX_CACHE_NAME }}
+          nix build -L .#default --print-out-paths | cachix push ${{ secrets.CACHIX_CACHE_NAME }}
