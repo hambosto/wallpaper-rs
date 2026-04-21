@@ -27,7 +27,7 @@
       });
 
       packages = eachSystem (system: {
-        wallpaper-rs = (pkgsFor system).callPackage ./nix/package.nix { };
+        wallpaper-rs = (pkgsFor system).callPackage ./nix/package.nix { inherit self; };
         default = self.packages.${system}.wallpaper-rs;
       });
 

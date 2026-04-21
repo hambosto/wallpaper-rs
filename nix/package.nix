@@ -1,12 +1,26 @@
 {
+  self,
   lib,
   pkg-config,
   rustPlatform,
   libxkbcommon,
 }:
+let
+  fmtDate =
+    raw:
+    let
+      year = builtins.substring 0 4 raw;
+      month = builtins.substring 4 2 raw;
+      day = builtins.substring 6 2 raw;
+    in
+    "${year}-${month}-${day}";
+
+  date = fmtDate (self.lastModifiedDate or "19700101");
+  shortRev = self.shortRev or "dirty";
+in
 rustPlatform.buildRustPackage (final: {
   pname = "wallpaper-rs";
-  version = "26.3.0";
+  version = "unstable-${date}-${shortRev}";
 
   src = lib.fileset.toSource {
     root = ../.;
