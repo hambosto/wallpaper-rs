@@ -15,25 +15,16 @@ impl ResolvedOutput {
 
     fn from_handle(output_state: &OutputState, handle: WlOutput) -> Option<Self> {
         let info = output_state.info(&handle)?;
-        let name = output_name(&info);
-        let (width, height) = output_dimensions(&info)?;
+        let name = info.name.as_deref().map(String::from).unwrap_or_else(|| format!("output-{}", info.id));
+        let (width, height) = dimensions(&info)?;
 
         Some(Self { name, handle, width, height })
     }
 }
 
-fn output_name(info: &OutputInfo) -> String {
-    info.name.as_deref().map(|s| s.to_string()).unwrap_or_else(|| format!("output-{}", info.id))
-}
-
-fn output_dimensions(info: &OutputInfo) -> Option<(u32, u32)> {
-    logical_size(info).or_else(|| current_mode_size(info))
-}
-
-fn logical_size(info: &OutputInfo) -> Option<(u32, u32)> {
-    info.logical_size.filter(|(w, h)| *w > 0 && *h > 0).map(|(w, h)| (w as u32, h as u32))
-}
-
-fn current_mode_size(info: &OutputInfo) -> Option<(u32, u32)> {
-    info.modes.iter().find(|m| m.current).map(|m| (m.dimensions.0 as u32, m.dimensions.1 as u32))
+fn dimensions(info: &OutputInfo) -> Option<(u32, u32)> {
+    info.logical_size
+        .filter(|(w, h)| *w > 0 && *h > 0)
+        .map(|(w, h)| (w as u32, h as u32))
+        .or_else(|| info.modes.iter().find(|m| m.current).map(|m| (m.dimensions.0 as u32, m.dimensions.1 as u32)))
 }

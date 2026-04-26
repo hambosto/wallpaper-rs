@@ -10,14 +10,9 @@ pub struct ShmBuffer {
 }
 
 impl ShmBuffer {
-    pub fn new<F>(shm: &Shm, width: u32, height: u32, fill: F) -> Result<Self>
-    where
-        F: FnOnce(&mut [u8]),
-    {
+    pub fn new(shm: &Shm, width: u32, height: u32, fill: impl FnOnce(&mut [u8])) -> Result<Self> {
         let stride = width * 4;
-        let size = (stride * height) as usize;
-
-        let mut pool = SlotPool::new(size, shm).context("Failed to create SHM pool")?;
+        let mut pool = SlotPool::new((stride * height) as usize, shm).context("Failed to create SHM pool")?;
 
         let (buffer, canvas) = pool.create_buffer(width as i32, height as i32, stride as i32, Xrgb8888).context("Failed to allocate buffer slot")?;
         fill(canvas);
@@ -25,7 +20,6 @@ impl ShmBuffer {
         Ok(Self { buffer, _pool: pool })
     }
 
-    #[inline]
     pub fn wl_buffer(&self) -> &WlBuffer {
         self.buffer.wl_buffer()
     }

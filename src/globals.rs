@@ -9,22 +9,10 @@ use wayland_client::globals::GlobalList;
 
 use crate::state::WaylandState;
 
-pub struct BoundGlobals {
-    pub compositor: CompositorState,
-    pub shm: Shm,
-    pub layer_shell: LayerShell,
-}
+pub fn bind(globals: &GlobalList, qh: &QueueHandle<WaylandState>) -> Result<WaylandState> {
+    let compositor = CompositorState::bind(globals, qh).context("wl_compositor not available")?;
+    let shm = Shm::bind(globals, qh).context("wl_shm not available")?;
+    let layer_shell = LayerShell::bind(globals, qh).context("zwlr_layer_shell_v1 not available")?;
 
-impl BoundGlobals {
-    pub fn new(globals: &GlobalList, qh: &QueueHandle<WaylandState>) -> Result<Self> {
-        Ok(Self {
-            compositor: CompositorState::bind(globals, qh).context("wl_compositor not available")?,
-            shm: Shm::bind(globals, qh).context("wl_shm not available")?,
-            layer_shell: LayerShell::bind(globals, qh).context("zwlr_layer_shell_v1 not available")?,
-        })
-    }
-
-    pub fn into_wayland_state(self, globals: &GlobalList, qh: &QueueHandle<WaylandState>) -> WaylandState {
-        WaylandState::new(RegistryState::new(globals), OutputState::new(globals, qh), self.compositor, self.layer_shell, self.shm)
-    }
+    Ok(WaylandState::new(RegistryState::new(globals), OutputState::new(globals, qh), compositor, layer_shell, shm))
 }

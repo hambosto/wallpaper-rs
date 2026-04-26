@@ -14,13 +14,10 @@ let
       day = builtins.substring 6 2 raw;
     in
     "${year}-${month}-${day}";
-
-  date = fmtDate (self.lastModifiedDate or "19700101");
-  shortRev = self.shortRev or "dirty";
 in
 rustPlatform.buildRustPackage (final: {
   pname = "wallpaper-rs";
-  version = "unstable-${date}-${shortRev}";
+  version = "unstable-${fmtDate self.lastModifiedDate}-${self.shortRev or "dirty"}";
 
   src = lib.fileset.toSource {
     root = ../.;
@@ -31,6 +28,10 @@ rustPlatform.buildRustPackage (final: {
     ];
   };
 
+  cargoLock.lockFile = ../Cargo.lock;
+
+  doCheck = false;
+
   buildInputs = [
     libxkbcommon
   ];
@@ -39,9 +40,7 @@ rustPlatform.buildRustPackage (final: {
     pkg-config
   ];
 
-  doCheck = false;
-
-  cargoLock.lockFile = ../Cargo.lock;
+  WALLPAPER_BUILD_VERSION = "unstable ${fmtDate self.lastModifiedDate} (commit ${self.rev or "dirty"})";
 
   meta = {
     description = "A minimal wallpaper daemon for Wayland, written in Rust.";

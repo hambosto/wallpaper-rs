@@ -18,11 +18,11 @@ impl Config {
 
         let raw = std::fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
         let config: Self = toml::from_str(&raw).with_context(|| format!("Failed to parse {}", path.display()))?;
-        let image = validated_image_path(&config.image)?;
 
-        tracing::info!("Configuration loaded: {}", image.display());
+        validate_image_path(&config.image)?;
+        tracing::info!("Configuration loaded: {}", config.image.display());
 
-        Ok(Self { image })
+        Ok(config)
     }
 }
 
@@ -35,15 +35,15 @@ fn config_path() -> Result<PathBuf> {
     Ok(base.join(APP_NAME).join(CONFIG_FILE))
 }
 
-fn validated_image_path(path: &Path) -> Result<PathBuf> {
+fn validate_image_path(path: &Path) -> Result<()> {
     if !path.is_absolute() {
         anyhow::bail!("`image` must be an absolute path, got '{}'", path.display());
     }
 
-    let metadata = std::fs::metadata(path).with_context(|| format!("Cannot access image {}", path.display()))?;
-    if !metadata.is_file() {
+    let meta = std::fs::metadata(path).with_context(|| format!("Cannot access image '{}'", path.display()))?;
+    if !meta.is_file() {
         anyhow::bail!("Image path '{}' is not a file", path.display());
     }
 
-    Ok(path.to_path_buf())
+    Ok(())
 }

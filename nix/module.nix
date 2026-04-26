@@ -38,6 +38,7 @@ in
       };
 
       Unit = {
+        Description = "A minimal wallpaper daemon for Wayland, written in Rust.";
         ConditionEnvironment = "WAYLAND_DISPLAY";
         After = [ config.wayland.systemd.target ];
         PartOf = [ config.wayland.systemd.target ];
