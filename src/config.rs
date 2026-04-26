@@ -1,10 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
-
-const APP_NAME: &str = "wallpaper-rs";
-const CONFIG_FILE: &str = "config.toml";
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -13,37 +10,34 @@ pub struct Config {
 
 impl Config {
     pub fn load() -> Result<Self> {
-        let path = config_path()?;
-        tracing::info!("Loading configuration: {}", path.display());
+        let path = Self::path()?;
+        tracing::info!("Loading config: {}", path.display());
 
-        let raw = std::fs::read_to_string(&path).with_context(|| format!("Failed to read {}", path.display()))?;
-        let config: Self = toml::from_str(&raw).with_context(|| format!("Failed to parse {}", path.display()))?;
-
-        validate_image_path(&config.image)?;
-        tracing::info!("Configuration loaded: {}", config.image.display());
+        let raw = std::fs::read_to_string(&path).context("Cannot read config file")?;
+        let config: Self = toml::from_str(&raw).context("Cannot parse config file")?;
+        config.validate()?;
 
         Ok(config)
     }
-}
 
-fn config_path() -> Result<PathBuf> {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
-        .context("$HOME and $XDG_CONFIG_HOME are both unset")?;
-
-    Ok(base.join(APP_NAME).join(CONFIG_FILE))
-}
-
-fn validate_image_path(path: &Path) -> Result<()> {
-    if !path.is_absolute() {
-        anyhow::bail!("`image` must be an absolute path, got '{}'", path.display());
+    fn path() -> Result<PathBuf> {
+        std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+            .context("Neither $XDG_CONFIG_HOME nor $HOME is set")
+            .map(|base| base.join("wallpaper-rs").join("config.toml"))
     }
 
-    let meta = std::fs::metadata(path).with_context(|| format!("Cannot access image '{}'", path.display()))?;
-    if !meta.is_file() {
-        anyhow::bail!("Image path '{}' is not a file", path.display());
-    }
+    fn validate(&self) -> Result<()> {
+        if !self.image.is_absolute() {
+            anyhow::bail!("image must be absolute, got {}", self.image.display());
+        }
 
-    Ok(())
+        let meta = std::fs::metadata(&self.image).context("Cannot access image")?;
+        if !meta.is_file() {
+            anyhow::bail!("{} is not a file", self.image.display());
+        }
+
+        Ok(())
+    }
 }

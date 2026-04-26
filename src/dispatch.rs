@@ -8,13 +8,12 @@ use wayland_client::protocol::wl_output::{Transform, WlOutput};
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::{Connection, Dispatch, QueueHandle};
 
-use crate::state::WaylandState;
+use crate::state::{Geometry, WaylandState};
 
 impl ProvidesRegistryState for WaylandState {
     fn registry(&mut self) -> &mut RegistryState {
         &mut self.registry_state
     }
-
     smithay_client_toolkit::registry_handlers!(OutputState);
 }
 
@@ -22,7 +21,9 @@ impl OutputHandler for WaylandState {
     fn output_state(&mut self) -> &mut OutputState {
         &mut self.output_state
     }
-    fn new_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: WlOutput) {}
+    fn new_output(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: WlOutput) {
+        self.create_surfaces(qh);
+    }
     fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: WlOutput) {}
     fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: WlOutput) {}
 }
@@ -38,23 +39,21 @@ impl CompositorHandler for WaylandState {
 impl LayerShellHandler for WaylandState {
     fn closed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &LayerSurface) {}
 
-    fn configure(&mut self, _: &Connection, _: &QueueHandle<Self>, layer: &LayerSurface, configure: LayerSurfaceConfigure, serial: u32) {
-        let Some(ps) = self.pending.iter_mut().find(|ps| &ps.layer_surface == layer) else {
+    fn configure(&mut self, _: &Connection, _: &QueueHandle<Self>, layer: &LayerSurface, configure: LayerSurfaceConfigure, _: u32) {
+        let Some(u) = self.unconfigured.iter_mut().find(|u| &u.layer_surface == layer) else {
             return;
         };
-        ps.configure_serial = Some(serial);
 
         let (w, h) = configure.new_size;
         if w > 0 && h > 0 {
-            ps.width = w;
-            ps.height = h;
+            u.geometry = Geometry { width: w, height: h };
         }
     }
 }
 
 impl ShmHandler for WaylandState {
     fn shm_state(&mut self) -> &mut Shm {
-        &mut self.shm_state
+        &mut self.shm
     }
 }
 

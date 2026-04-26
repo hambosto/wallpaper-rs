@@ -1,13 +1,11 @@
 use anyhow::{Context, Result};
 
-mod buffer;
 mod config;
 mod dispatch;
-mod globals;
-mod output;
-mod renderer;
+mod render;
+mod session;
+mod shm;
 mod state;
-mod wallpaper;
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt().with_file(true).with_line_number(true).init();
@@ -16,7 +14,6 @@ fn main() -> Result<()> {
     tracing::info!("Starting wallpaper-rs {version}");
 
     std::env::var("WAYLAND_DISPLAY").context("WAYLAND_DISPLAY not set — are you in a Wayland session?")?;
-    let config = config::Config::load()?;
 
-    wallpaper::run(&config)
+    session::run(&config::Config::load()?)
 }

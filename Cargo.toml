@@ -2,6 +2,12 @@
 name = "wallpaper-rs"
 version = "26.3.0"
 edition = "2024"
+description = "A minimal wallpaper daemon for Wayland, written in Rust."
+license = "MIT"
+authors = ["Ilham Putra Husada <hambosto@gmail.com>"]
+readme = "README.md"
+homepage = "https://github.com/hambosto/wallpaper-rs"
+repository = "https://github.com/hambosto/wallpaper-rs"
 
 [dependencies]
 anyhow = "1.0.102"
