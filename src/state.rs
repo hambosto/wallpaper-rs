@@ -10,7 +10,6 @@ use wayland_client::QueueHandle;
 use wayland_client::globals::GlobalList;
 use wayland_client::protocol::wl_surface::WlSurface;
 
-use crate::render;
 use crate::shm::ShmBuffer;
 
 pub struct Geometry {
@@ -94,7 +93,7 @@ impl WaylandState {
         }
 
         for c in configured {
-            let buffer = ShmBuffer::allocate_and_fill(&self.shm, c.geometry.width, c.geometry.height, |dst| render::render_into(image, c.geometry.width, c.geometry.height, dst))
+            let buffer = ShmBuffer::allocate_and_fill(&self.shm, c.geometry.width, c.geometry.height, |dst| crate::render::render_into(image, c.geometry.width, c.geometry.height, dst))
                 .context("Failed to render wallpaper")?;
 
             c.surface.attach(Some(buffer.wl_buffer()), 0, 0);
