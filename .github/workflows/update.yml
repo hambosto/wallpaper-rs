@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   update:
-    name: Update Dependencies (Flake Lock)
+    name: Update Dependencies
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -20,7 +20,7 @@ jobs:
       - name: Install Nix package manager
         uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Configure Cachix binary cache
+      - name: Set up Cachix
         uses: cachix/cachix-action@v17
         with:
           name: ${{ secrets.CACHIX_CACHE_NAME }}
@@ -31,10 +31,17 @@ jobs:
         uses: DeterminateSystems/update-flake-lock@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-msg: "chore: update flake.lock"
-          pr-labels: |
-            dependencies
-            automated
+
+      - name: Checkout PR branch
+        if: steps.update.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr checkout ${{ steps.update.outputs.pull-request-number }}
+
+      - name: Build and push artifacts to Cachix cache
+        if: steps.update.outputs.pull-request-number != ''
+        run: |
+          nix build -L .#default --print-out-paths | cachix push ${{ secrets.CACHIX_CACHE_NAME }}
 
       - name: Auto-merge dependency update PR
         if: ${{ steps.update.outputs.pull-request-number != '' }}

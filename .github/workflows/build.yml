@@ -1,4 +1,4 @@
-name: Rust CI (Nix + Cachix)
+name: Build Package
 
 on:
   pull_request:
@@ -8,16 +8,11 @@ on:
 
 jobs:
   build:
-    name: Build & Test (Rust + Nix)
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
         uses: actions/checkout@v6
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev pkg-config
 
       - name: Install Nix package manager
         uses: DeterminateSystems/nix-installer-action@main
