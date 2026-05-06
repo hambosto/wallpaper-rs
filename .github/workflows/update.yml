@@ -41,7 +41,7 @@ jobs:
       - name: Build and push artifacts to Cachix cache
         if: steps.update.outputs.pull-request-number != ''
         run: |
-          nix build -L .#default --print-out-paths | cachix push ${{ secrets.CACHIX_CACHE_NAME }}
+          nix build --no-link --print-out-paths .#default | cachix push ${{ secrets.CACHIX_CACHE_NAME }}
 
       - name: Auto-merge dependency update PR
         if: ${{ steps.update.outputs.pull-request-number != '' }}
