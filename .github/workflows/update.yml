@@ -40,12 +40,10 @@ jobs:
 
       - name: Build and push artifacts to Cachix cache
         if: steps.update.outputs.pull-request-number != ''
-        run: |
-          nix build --no-link --print-out-paths .#default | cachix push ${{ secrets.CACHIX_CACHE_NAME }}
+        run: nix build --no-link --print-out-paths .#default | cachix push ${{ secrets.CACHIX_CACHE_NAME }}
 
       - name: Auto-merge dependency update PR
         if: ${{ steps.update.outputs.pull-request-number != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr merge ${{ steps.update.outputs.pull-request-number }} --squash --delete-branch
+        run: gh pr merge ${{ steps.update.outputs.pull-request-number }} --squash --delete-branch
