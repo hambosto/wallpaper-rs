@@ -1,0 +1,31 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+      
+      - name: Install Rust toolchain (nightly)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+          cache: false
+      
+      - name: Verify code formatting
+        run: cargo fmt --all -- --check
+      
+      - name: Run Clippy static analysis
+        run: cargo clippy --all-targets --all-features
+      
+      - name: Execute test suite
+        run: cargo test --all-features
