@@ -19,6 +19,9 @@ tracing = { version = "0.1.44", default-features = false, features = ["tracing-a
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["ansi"] }
 wayland-client = "0.31.14"
 
+[dev-dependencies]
+tempfile = "3"
+
 [profile.release]
 opt-level = 3
 lto = "fat"

@@ -21,9 +21,11 @@ impl OutputHandler for WaylandState {
     fn output_state(&mut self) -> &mut OutputState {
         &mut self.output_state
     }
+
     fn new_output(&mut self, _: &Connection, qh: &QueueHandle<Self>, _: WlOutput) {
         self.create_surfaces(qh);
     }
+
     fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: WlOutput) {}
     fn output_destroyed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: WlOutput) {}
 }
