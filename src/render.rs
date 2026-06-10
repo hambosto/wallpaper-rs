@@ -36,8 +36,9 @@ pub(crate) fn render_into(path: &Path, width: u32, height: u32, dst: &mut [u8]) 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::path::PathBuf;
+
+    use super::*;
 
     fn create_test_image(dir: &std::path::Path) -> PathBuf {
         let path = dir.join("test.png");

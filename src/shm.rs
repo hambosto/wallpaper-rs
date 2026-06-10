@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
 use smithay_client_toolkit::shm::Shm;
+use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
 use wayland_client::protocol::wl_shm::Format::Xrgb8888;
 use wayland_client::protocol::wl_surface::WlSurface;
 
