@@ -2,17 +2,16 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use smithay_client_toolkit::compositor::CompositorState;
-use smithay_client_toolkit::output::OutputInfo;
 use smithay_client_toolkit::output::OutputState;
 use smithay_client_toolkit::registry::RegistryState;
-use smithay_client_toolkit::shell::WaylandSurface;
 use smithay_client_toolkit::shell::wlr_layer::{Anchor, Layer, LayerShell, LayerSurface};
-use smithay_client_toolkit::shm::Shm;
+use smithay_client_toolkit::shell::WaylandSurface;
 use smithay_client_toolkit::shm::raw::RawPool;
-use wayland_client::QueueHandle;
+use smithay_client_toolkit::shm::Shm;
 use wayland_client::globals::GlobalList;
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_shm::Format::Xrgb8888;
+use wayland_client::QueueHandle;
 
 use crate::render::Render;
 
@@ -30,11 +29,6 @@ pub(super) struct WaylandState {
     pub(super) shm: Shm,
     pub(super) pending_surfaces: Vec<PendingSurface>,
     committed: Vec<(LayerSurface, RawPool, WlBuffer)>,
-}
-
-struct ShmBuffer {
-    pool: RawPool,
-    buffer: WlBuffer,
 }
 
 impl WaylandState {
@@ -58,7 +52,11 @@ impl WaylandState {
                 continue;
             };
 
-            let Some((w, h)) = output_dimensions(&info) else {
+            let Some((w, h)) = info
+                .logical_size
+                .filter(|(w, h)| *w > 0 && *h > 0)
+                .or_else(|| info.modes.iter().find(|m| m.current).map(|m| m.dimensions))
+            else {
                 continue;
             };
 
@@ -71,7 +69,10 @@ impl WaylandState {
                 Some(&handle),
             );
 
-            configure_layer_surface(&layer_surface);
+            layer_surface.set_anchor(Anchor::all());
+            layer_surface.set_exclusive_zone(-1);
+            layer_surface.set_size(0, 0);
+            layer_surface.commit();
 
             self.pending_surfaces.push(PendingSurface {
                 layer_surface,
@@ -109,16 +110,24 @@ impl WaylandState {
         renderer: &Render,
         queue_handle: &QueueHandle<Self>,
     ) -> Result<()> {
-        let shm_buffer = create_shm_buffer(
-            &self.shm,
-            pending.width,
-            pending.height,
-            renderer,
+        let stride = pending.width * 4;
+        let mut pool = RawPool::new((stride * pending.height) as usize, &self.shm)
+            .context("failed to create shm pool")?;
+        let pixels = pool.mmap();
+        renderer.render(pending.width, pending.height, pixels);
+
+        let buffer = pool.create_buffer::<WaylandState, ()>(
+            0,
+            pending.width.cast_signed(),
+            pending.height.cast_signed(),
+            stride.cast_signed(),
+            Xrgb8888,
+            (),
             queue_handle,
-        )?;
+        );
 
         let wl_surface = pending.layer_surface.wl_surface();
-        wl_surface.attach(Some(&shm_buffer.buffer), 0, 0);
+        wl_surface.attach(Some(&buffer), 0, 0);
         wl_surface.damage_buffer(
             0,
             0,
@@ -127,49 +136,8 @@ impl WaylandState {
         );
         pending.layer_surface.commit();
 
-        self.committed
-            .push((pending.layer_surface, shm_buffer.pool, shm_buffer.buffer));
+        self.committed.push((pending.layer_surface, pool, buffer));
 
         Ok(())
     }
-}
-
-fn output_dimensions(info: &OutputInfo) -> Option<(i32, i32)> {
-    info.logical_size
-        .filter(|(w, h)| *w > 0 && *h > 0)
-        .or_else(|| info.modes.iter().find(|m| m.current).map(|m| m.dimensions))
-}
-
-fn configure_layer_surface(surface: &LayerSurface) {
-    surface.set_anchor(Anchor::all());
-    surface.set_exclusive_zone(-1);
-    surface.set_size(0, 0);
-    surface.commit();
-}
-
-fn create_shm_buffer(
-    shm: &Shm,
-    width: u32,
-    height: u32,
-    renderer: &Render,
-    queue_handle: &QueueHandle<WaylandState>,
-) -> Result<ShmBuffer> {
-    let stride = width * 4;
-    let mut pool =
-        RawPool::new((stride * height) as usize, shm).context("failed to create SHM pool")?;
-
-    let pixels = pool.mmap();
-    renderer.render(width, height, pixels);
-
-    let buffer = pool.create_buffer::<WaylandState, ()>(
-        0,
-        width.cast_signed(),
-        height.cast_signed(),
-        stride.cast_signed(),
-        Xrgb8888,
-        (),
-        queue_handle,
-    );
-
-    Ok(ShmBuffer { pool, buffer })
 }
