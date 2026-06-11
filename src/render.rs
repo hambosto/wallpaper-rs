@@ -1,74 +1,42 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use image::ImageReader;
+use image::{ImageReader, RgbImage};
 
-pub(crate) fn render_into(path: &Path, width: u32, height: u32, dst: &mut [u8]) -> Result<()> {
-    let image = ImageReader::open(path).context("cannot open image")?;
-    let decode_image = image.decode().context("cannot decode image")?;
-    let image_rgba8 = decode_image.into_rgb8();
-
-    let src_w = f64::from(image_rgba8.width());
-    let src_h = f64::from(image_rgba8.height());
-    let scale = f64::max(f64::from(width) / src_w, f64::from(height) / src_h);
-    let x_off = (src_w.mul_add(scale, -f64::from(width))) / 2.0;
-    let y_off = (src_h.mul_add(scale, -f64::from(height))) / 2.0;
-    let src_h = image_rgba8.height() - 1;
-    let src_w = image_rgba8.width() - 1;
-
-    for y in 0..height {
-        let sy = ((y_off + f64::from(y)) / scale) as u32;
-        let sy = sy.min(src_h);
-        for x in 0..width {
-            let sx = ((x_off + f64::from(x)) / scale) as u32;
-            let sx = sx.min(src_w);
-            let [r, g, b] = image_rgba8.get_pixel(sx, sy).0;
-            let i = ((y * width + x) * 4) as usize;
-            dst[i] = b;
-            dst[i + 1] = g;
-            dst[i + 2] = r;
-            dst[i + 3] = 0xFF;
-        }
-    }
-
-    Ok(())
+pub struct Render {
+    image: RgbImage,
 }
 
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
+impl Render {
+    pub fn new(path: &Path) -> Result<Self> {
+        let src = ImageReader::open(path).context("cannot open image")?;
+        let decoded_image = src.decode().context("cannot decode image")?;
+        let image_rgb = decoded_image.into_rgb8();
 
-    use super::*;
-
-    fn create_test_image(dir: &std::path::Path) -> PathBuf {
-        let path = dir.join("test.png");
-        let img = image::RgbaImage::from_fn(4, 4, |x, y| if x < 2 && y < 2 { image::Rgba([255, 0, 0, 255]) } else { image::Rgba([0, 0, 255, 255]) });
-        image::DynamicImage::ImageRgba8(img)
-            .write_with_encoder(image::codecs::png::PngEncoder::new(std::fs::File::create(&path).unwrap()))
-            .unwrap();
-        path
+        Ok(Self { image: image_rgb })
     }
 
-    #[test]
-    fn render_into_fills_buffer() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = create_test_image(dir.path());
-        let mut buf = vec![0u8; 8 * 8 * 4];
+    pub fn render(&self, width: u32, height: u32, dst: &mut [u8]) {
+        let (src_w, src_h) = self.image.dimensions();
+        let (sw, sh) = (f64::from(src_w), f64::from(src_h));
+        let scale = (f64::from(width) / sw).max(f64::from(height) / sh);
+        let x_off = sw.mul_add(scale, -f64::from(width)) / 2.0;
+        let y_off = sh.mul_add(scale, -f64::from(height)) / 2.0;
+        let stride = src_w as usize * 3;
+        let pixels = self.image.as_raw();
 
-        render_into(&path, 8, 8, &mut buf).unwrap();
+        for (i, dst_pixel) in dst.chunks_exact_mut(4).enumerate() {
+            let dx = (i as u32) % width;
+            let dy = (i as u32) / width;
 
-        for chunk in buf.chunks(4) {
-            assert_eq!(chunk[3], 0xFF);
-            assert!(chunk[0] != 0 || chunk[1] != 0 || chunk[2] != 0);
+            let sx = ((x_off + f64::from(dx)) / scale) as u32;
+            let sy = ((y_off + f64::from(dy)) / scale) as u32;
+
+            let src_x = sx.min(src_w - 1) as usize;
+            let src_y = sy.min(src_h - 1) as usize;
+            let src = &pixels[src_y * stride + src_x * 3..][..3];
+
+            dst_pixel.copy_from_slice(&[src[2], src[1], src[0], 0xFF]);
         }
-    }
-
-    #[test]
-    fn render_into_returns_error_for_missing_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("nonexistent.png");
-        let mut buf = vec![0u8; 4];
-
-        assert!(render_into(&path, 1, 1, &mut buf).is_err());
     }
 }
