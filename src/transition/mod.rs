@@ -17,15 +17,13 @@ pub struct Transition {
 impl Transition {
     pub fn new(config: &TransitionConfig, dimensions: (u32, u32), target: Vec<u8>) -> Self {
         tracing::info!(
-            transition_type = ?&config.transition_type,
+            transition_type = ?config.transition_type,
             duration = config.duration,
             fps = config.fps,
-            "creating transition"
+            "creating transition",
         );
-        let effect = Some(Effect::new(config, dimensions));
-
         Self {
-            effect,
+            effect: Some(Effect::new(config, dimensions)),
             target,
             start: Instant::now(),
             width: dimensions.0,
@@ -42,16 +40,17 @@ impl Transition {
     }
 
     pub fn frame(&mut self, canvas: &mut [u8]) -> bool {
-        let elapsed = self.start.elapsed().as_secs_f64();
+        let effect = match self.effect.as_mut() {
+            Some(e) => e,
+            None => return true,
+        };
 
-        if let Some(ref mut effect) = self.effect {
-            let done = effect.execute(canvas, &self.target, elapsed);
-            if done {
-                tracing::info!("transition effect finished at {:.2}s", elapsed);
-                self.effect = None;
-                return true;
-            }
+        let elapsed = self.start.elapsed().as_secs_f64();
+        let done = effect.execute(canvas, &self.target, elapsed);
+        if done {
+            tracing::info!("transition finished at {elapsed:.2}s");
+            self.effect = None;
         }
-        false
+        done
     }
 }
