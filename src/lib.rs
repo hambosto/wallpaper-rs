@@ -1,5 +1,6 @@
 pub mod config;
 pub mod render;
+pub mod transition;
 pub mod wayland;
 
 use anyhow::{Context, Result};

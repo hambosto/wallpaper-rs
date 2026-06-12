@@ -11,20 +11,42 @@ repository = "https://github.com/hambosto/wallpaper-rs"
 
 [dependencies]
 anyhow = "1.0.102"
-image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+fast_image_resize = "6.0.0"
+image = { version = "0.25.10", default-features = false, features = [
+    "bmp",
+    "dds",
+    "exr",
+    "ff",
+    "gif",
+    "hdr",
+    "ico",
+    "jpeg",
+    "png",
+    "pnm",
+    "qoi",
+    "tga",
+    "tiff",
+    "webp",
+] }
+jxl-oxide = { version = "0.12.6", features = ["image"] }
+resvg = { version = "0.47.0", default-features = false }
 serde = { version = "1.0.228", features = ["derive"] }
 smithay-client-toolkit = "0.20.0"
 toml = "1.1.2"
-tracing = { version = "0.1.44", default-features = false, features = ["tracing-attributes"] }
-tracing-subscriber = { version = "0.3.23", default-features = false, features = ["ansi"] }
+tracing = { version = "0.1.44", default-features = false, features = [
+    "tracing-attributes",
+] }
+tracing-subscriber = { version = "0.3.23", default-features = false, features = [
+    "ansi",
+] }
 wayland-client = "0.31.14"
 
 [dev-dependencies]
 tempfile = "3"
 
 [profile.release]
-opt-level = 3
-lto = "fat"
 codegen-units = 1
-strip = true
+lto = "fat"
+opt-level = 3
 panic = "abort"
+strip = true

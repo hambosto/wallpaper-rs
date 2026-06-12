@@ -52,7 +52,15 @@ impl CompositorHandler for WaylandState {
     ) {
     }
 
-    fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlSurface, _: u32) {}
+    fn frame(
+        &mut self,
+        _: &Connection,
+        queue_handle: &QueueHandle<Self>,
+        surface: &WlSurface,
+        _: u32,
+    ) {
+        self.advance_transition(surface, queue_handle);
+    }
 
     fn surface_enter(
         &mut self,

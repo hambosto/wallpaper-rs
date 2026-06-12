@@ -27,7 +27,12 @@ pub fn run(config: &Config) -> Result<()> {
         .roundtrip(&mut state)
         .context("configure roundtrip failed")?;
 
-    state.set_wallpapers(&config.image, &queue.handle())?;
+    state.set_wallpapers(
+        &config.image.path,
+        &config.transition,
+        &config.resize,
+        &queue.handle(),
+    )?;
 
     queue
         .roundtrip(&mut state)
@@ -39,6 +44,8 @@ pub fn run(config: &Config) -> Result<()> {
     WaylandSource::new(connection, queue)
         .insert(event_loop.handle())
         .context("failed to insert Wayland source")?;
+
+    state.start_animation_timer(&event_loop.handle())?;
 
     event_loop
         .run(None, &mut state, |_| {})
