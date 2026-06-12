@@ -226,7 +226,9 @@ impl WaylandState {
         let pool_size = if needs_double_buf { buf_size * 2 } else { buf_size };
         let mut pool = RawPool::new(pool_size, &self.shm).context("failed to create shm pool")?;
 
-        pool.mmap()[..buf_size].copy_from_slice(&pixels);
+        if !with_transition {
+            pool.mmap()[..buf_size].copy_from_slice(&pixels);
+        }
 
         let (buffer_a, buffer_b) = alloc_buffers(&mut pool, w, h, stride, buf_size, needs_double_buf, qh);
 
