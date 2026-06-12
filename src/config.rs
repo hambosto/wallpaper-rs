@@ -103,17 +103,13 @@ pub enum TransitionType {
     Wave,
 }
 
-/// Pixel coordinate, either absolute or relative.
 #[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(untagged)]
 pub enum Coord {
-    /// Absolute pixel value.
     Pixel(f32),
-    /// Relative value in [0.0, 1.0] range.
     Percent(f32),
 }
 
-/// A 2D position used for transition origin (Grow/Outer center point).
 #[derive(Deserialize, Debug, Clone, Copy)]
 pub struct Position {
     pub x: Coord,
@@ -130,7 +126,6 @@ impl Default for Position {
 }
 
 impl Position {
-    /// Convert to pixel coordinates. `invert_y` controls Y-axis direction.
     pub fn to_pixel(&self, dim: (u32, u32), invert_y: bool) -> (f32, f32) {
         let x = match self.x {
             Coord::Pixel(x) => x,
