@@ -1,6 +1,5 @@
 use super::keyframe::AnimationSequence;
-use crate::config::TransitionType;
-use crate::config::{Position, TransitionConfig};
+use crate::config::{Position, TransitionConfig, TransitionType};
 
 #[inline(always)]
 fn blend_pixel(canvas: &mut [u8], target: &[u8], step: u8) {

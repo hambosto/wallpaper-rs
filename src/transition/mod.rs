@@ -3,8 +3,9 @@ pub mod keyframe;
 
 use std::time::Instant;
 
-use crate::config::TransitionConfig;
 use effects::Effect;
+
+use crate::config::TransitionConfig;
 
 pub struct Transition {
     effect: Option<Effect>,

@@ -4,10 +4,10 @@ mod state;
 use anyhow::{Context, Result};
 use smithay_client_toolkit::reexports::calloop::EventLoop;
 use smithay_client_toolkit::reexports::calloop_wayland_source::WaylandSource;
+use state::WaylandState;
 use wayland_client::Connection;
 
 use crate::config::Config;
-use state::WaylandState;
 
 pub fn run(config: &Config) -> Result<()> {
     let connection = Connection::connect_to_env().context("failed to connect to wayland display")?;
