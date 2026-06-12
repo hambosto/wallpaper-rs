@@ -1,0 +1,10 @@
+imports_granularity = "Module"
+group_imports = "StdExternalCrate"
+fn_params_layout = "Compressed"
+wrap_comments = true
+comment_width = 100
+max_width = 200
+chain_width = 120
+single_line_if_else_max_width = 120
+use_small_heuristics = "Max"
+newline_style = "Unix"

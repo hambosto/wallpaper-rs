@@ -22,13 +22,7 @@ impl Transition {
             fps = config.fps,
             "creating transition",
         );
-        Self {
-            effect: Some(Effect::new(config, dimensions)),
-            target,
-            start: Instant::now(),
-            width: dimensions.0,
-            height: dimensions.1,
-        }
+        Self { effect: Some(Effect::new(config, dimensions)), target, start: Instant::now(), width: dimensions.0, height: dimensions.1 }
     }
 
     pub fn is_done(&self) -> bool {

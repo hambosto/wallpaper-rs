@@ -6,11 +6,7 @@ use crate::config::{Position, TransitionConfig};
 fn blend_pixel(canvas: &mut [u8], target: &[u8], step: u8) {
     for (old, &new) in canvas.iter_mut().zip(target) {
         let delta = step.min(old.abs_diff(new));
-        *old = if *old > new {
-            old.wrapping_sub(delta)
-        } else {
-            old.wrapping_add(delta)
-        };
+        *old = if *old > new { old.wrapping_sub(delta) } else { old.wrapping_add(delta) };
     }
 }
 
@@ -28,32 +24,9 @@ impl Effect {
             TransitionType::None => Self::None,
             TransitionType::Simple => Self::Simple(Simple::new(2)),
             TransitionType::Fade => Self::Fade(Fade::new(config.bezier, config.duration)),
-            TransitionType::Grow => Self::Radial(Radial::new(
-                config.bezier,
-                config.duration,
-                config.step,
-                config.pos,
-                config.invert_y,
-                dimensions,
-                RadialMode::Grow,
-            )),
-            TransitionType::Outer => Self::Radial(Radial::new(
-                config.bezier,
-                config.duration,
-                config.step,
-                config.pos,
-                config.invert_y,
-                dimensions,
-                RadialMode::Outer,
-            )),
-            TransitionType::Wipe | TransitionType::Wave => Self::Wave(Wave::new(
-                config.bezier,
-                config.duration,
-                config.step,
-                config.angle,
-                config.wave,
-                dimensions,
-            )),
+            TransitionType::Grow => Self::Radial(Radial::new(config.bezier, config.duration, config.step, config.pos, config.invert_y, dimensions, RadialMode::Grow)),
+            TransitionType::Outer => Self::Radial(Radial::new(config.bezier, config.duration, config.step, config.pos, config.invert_y, dimensions, RadialMode::Outer)),
+            TransitionType::Wipe | TransitionType::Wave => Self::Wave(Wave::new(config.bezier, config.duration, config.step, config.angle, config.wave, dimensions)),
         }
     }
 
@@ -143,15 +116,7 @@ pub(crate) struct Radial {
 }
 
 impl Radial {
-    fn new(
-        bezier: (f32, f32, f32, f32),
-        duration: f32,
-        step: u8,
-        pos: Position,
-        invert_y: bool,
-        dimensions: (u32, u32),
-        mode: RadialMode,
-    ) -> Self {
+    fn new(bezier: (f32, f32, f32, f32), duration: f32, step: u8, pos: Position, invert_y: bool, dimensions: (u32, u32), mode: RadialMode) -> Self {
         let (w, h) = (dimensions.0 as f32, dimensions.1 as f32);
         let (cx, cy) = pos.to_pixel(dimensions, invert_y);
         let far_x = if cx < w / 2.0 { w - 1.0 - cx } else { cx };
@@ -164,15 +129,7 @@ impl Radial {
         };
         let seq = AnimationSequence::new(bezier, duration, start_val, end_val, 0.0);
 
-        Self {
-            seq,
-            center: (cx as usize, cy as usize),
-            radius,
-            step,
-            width: dimensions.0 as usize,
-            height: dimensions.1 as usize,
-            mode,
-        }
+        Self { seq, center: (cx as usize, cy as usize), radius, step, width: dimensions.0 as usize, height: dimensions.1 as usize, mode }
     }
 
     fn run(&mut self, canvas: &mut [u8], target: &[u8], elapsed: f64) -> bool {
@@ -184,11 +141,7 @@ impl Radial {
 
         for line in 0..self.height {
             let dy = (cy as f32 - line as f32).abs();
-            let reach = if r > dy {
-                (r2 - dy * dy).sqrt() as usize
-            } else {
-                0
-            };
+            let reach = if r > dy { (r2 - dy * dy).sqrt() as usize } else { 0 };
 
             let inner_begin = cx.saturating_sub(reach) * 4;
             let inner_end = self.width.min(cx + reach) * 4;
@@ -236,14 +189,7 @@ pub(crate) struct Wave {
 }
 
 impl Wave {
-    fn new(
-        bezier: (f32, f32, f32, f32),
-        duration: f32,
-        step: u8,
-        angle: f64,
-        wave: (f32, f32),
-        dimensions: (u32, u32),
-    ) -> Self {
+    fn new(bezier: (f32, f32, f32, f32), duration: f32, step: u8, angle: f64, wave: (f32, f32), dimensions: (u32, u32)) -> Self {
         let width = dimensions.0 as f64;
         let height = dimensions.1 as f64;
         let center = (width / 2.0, height / 2.0);
@@ -255,27 +201,8 @@ impl Wave {
         let b = circle_radius * sin;
         let offset_start = (sin.abs() * width + cos.abs() * height) * 2.0;
         let offset_end = circle_radius * circle_radius * 2.0;
-        let seq = AnimationSequence::new(
-            bezier,
-            duration,
-            offset_start as f32,
-            offset_end as f32,
-            0.0,
-        );
-        Self {
-            seq,
-            center,
-            sin,
-            cos,
-            scale_x,
-            scale_y,
-            circle_radius,
-            a,
-            b,
-            step,
-            width: dimensions.0 as usize,
-            height: dimensions.1 as usize,
-        }
+        let seq = AnimationSequence::new(bezier, duration, offset_start as f32, offset_end as f32, 0.0);
+        Self { seq, center, sin, cos, scale_x, scale_y, circle_radius, a, b, step, width: dimensions.0 as usize, height: dimensions.1 as usize }
     }
 
     #[inline]
@@ -297,20 +224,10 @@ impl Wave {
             let row = line * stride;
 
             let r2 = self.circle_radius * self.circle_radius;
-            let x0 = ((r2 - (hy - self.scale_y * self.sin) * self.b - offset) / self.a
-                + self.center.0
-                + self.scale_y * self.cos)
-                .clamp(0.0, self.width as f64);
-            let x1 = ((r2 - (hy + self.scale_y * self.sin) * self.b - offset) / self.a
-                + self.center.0
-                - self.scale_y * self.cos)
-                .clamp(0.0, self.width as f64);
+            let x0 = ((r2 - (hy - self.scale_y * self.sin) * self.b - offset) / self.a + self.center.0 + self.scale_y * self.cos).clamp(0.0, self.width as f64);
+            let x1 = ((r2 - (hy + self.scale_y * self.sin) * self.b - offset) / self.a + self.center.0 - self.scale_y * self.cos).clamp(0.0, self.width as f64);
 
-            let (primary_begin, primary_end) = if self.a.is_sign_negative() {
-                (0, x0 as usize * 4)
-            } else {
-                (x0 as usize * 4, stride)
-            };
+            let (primary_begin, primary_end) = if self.a.is_sign_negative() { (0, x0 as usize * 4) } else { (x0 as usize * 4, stride) };
             for col in (primary_begin..primary_end).step_by(4) {
                 let i = row + col;
                 if let (Some(c), Some(t)) = (canvas.get_mut(i..i + 4), target.get(i..i + 4)) {
@@ -318,11 +235,7 @@ impl Wave {
                 }
             }
 
-            let (band_begin, band_end) = if x0 < x1 {
-                (x0 as usize * 4, x1 as usize * 4)
-            } else {
-                (x1 as usize * 4, x0 as usize * 4)
-            };
+            let (band_begin, band_end) = if x0 < x1 { (x0 as usize * 4, x1 as usize * 4) } else { (x1 as usize * 4, x0 as usize * 4) };
             for col in (band_begin..band_end).step_by(4) {
                 if self.is_transitioned(col as f64 / 4.0, line as f64, offset) {
                     let i = row + col;

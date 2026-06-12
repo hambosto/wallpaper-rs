@@ -5,23 +5,22 @@
   pkgs,
   ...
 }:
+
 let
   cfg = config.services.wallpaper-rs;
   tomlFormat = pkgs.formats.toml { };
-  configFile = tomlFormat.generate "config.toml" {
-    image = toString cfg.image;
-  };
+  configFile = tomlFormat.generate "config.toml" cfg.settings;
 in
 {
   options.services.wallpaper-rs = {
-    enable = lib.mkEnableOption "wallpaper-rs wayland wallpaper setter";
+    enable = lib.mkEnableOption "A minimal wallpaper daemon for Wayland, written in Rust.";
 
     package = lib.mkPackageOption self.packages.${pkgs.stdenv.system} "wallpaper-rs" { };
 
-    image = lib.mkOption {
-      type = lib.types.path;
-      description = "Path to the wallpaper image file.";
-      example = lib.literalExpression "/home/user/wallpaper.png";
+    settings = lib.mkOption {
+      inherit (tomlFormat) type;
+      default = { };
+      description = "Configuration for wallpaper-rs (TOML)";
     };
   };
 
@@ -29,20 +28,22 @@ in
     xdg.configFile."wallpaper-rs/config.toml".source = configFile;
 
     systemd.user.services.wallpaper-rs = {
-      Install.WantedBy = [ config.wayland.systemd.target ];
+      Unit = {
+        Description = "A minimal wallpaper daemon for Wayland, written in Rust.";
+        After = [ config.wayland.systemd.target ];
+        PartOf = [ config.wayland.systemd.target ];
+        X-Restart-Triggers = [ configFile ];
+      };
 
       Service = {
         ExecStart = lib.getExe cfg.package;
         Restart = "on-failure";
         RestartSec = 10;
+        ConditionEnvironment = "WAYLAND_DISPLAY";
       };
 
-      Unit = {
-        Description = "A minimal wallpaper daemon for Wayland, written in Rust.";
-        ConditionEnvironment = "WAYLAND_DISPLAY";
-        After = [ config.wayland.systemd.target ];
-        PartOf = [ config.wayland.systemd.target ];
-        X-Restart-Triggers = [ "${configFile}" ];
+      Install = {
+        WantedBy = [ config.wayland.systemd.target ];
       };
     };
   };

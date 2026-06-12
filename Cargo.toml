@@ -10,36 +10,18 @@ homepage = "https://github.com/hambosto/wallpaper-rs"
 repository = "https://github.com/hambosto/wallpaper-rs"
 
 [dependencies]
+animato-core = "1.5.0"
 anyhow = "1.0.102"
+dirs = "6.0.0"
 fast_image_resize = "6.0.0"
-image = { version = "0.25.10", default-features = false, features = [
-    "bmp",
-    "dds",
-    "exr",
-    "ff",
-    "gif",
-    "hdr",
-    "ico",
-    "jpeg",
-    "png",
-    "pnm",
-    "qoi",
-    "tga",
-    "tiff",
-    "webp",
-] }
+image = { version = "0.25.10", default-features = false, features = ["gif", "jpeg", "png", "webp"] }
 jxl-oxide = { version = "0.12.6", features = ["image"] }
-resvg = { version = "0.47.0", default-features = false }
 serde = { version = "1.0.228", features = ["derive"] }
-serde-inline-default = "1.0.1"
+smart-default = "0.7.1"
 smithay-client-toolkit = "0.20.0"
 toml = "1.1.2"
-tracing = { version = "0.1.44", default-features = false, features = [
-    "tracing-attributes",
-] }
-tracing-subscriber = { version = "0.3.23", default-features = false, features = [
-    "ansi",
-] }
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
 wayland-client = "0.31.14"
 
 [dev-dependencies]
@@ -51,3 +33,48 @@ lto = "fat"
 opt-level = 3
 panic = "abort"
 strip = true
+
+[lints.clippy]
+string_slice = "warn"
+indexing_slicing = "warn"
+unwrap_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+unreachable = "warn"
+get_unwrap = "warn"
+unwrap_in_result = "warn"
+unchecked_time_subtraction = "warn"
+panic_in_result_fn = "warn"
+expect_used = "warn"
+arithmetic_side_effects = "warn"
+let_underscore_future = "warn"
+let_underscore_must_use = "warn"
+unused_result_ok = "warn"
+map_err_ignore = "warn"
+assertions_on_result_states = "warn"
+await_holding_lock = "warn"
+await_holding_refcell_ref = "warn"
+if_let_mutex = "warn"
+large_futures = "warn"
+mem_forget = "warn"
+undocumented_unsafe_blocks = "warn"
+multiple_unsafe_ops_per_block = "warn"
+unnecessary_safety_doc = "warn"
+unnecessary_safety_comment = "warn"
+float_cmp = "warn"
+float_cmp_const = "warn"
+lossy_float_literal = "warn"
+cast_sign_loss = "warn"
+invalid_upcast_comparisons = "warn"
+cast_possible_wrap = "warn"
+cast_precision_loss = "warn"
+cast_possible_truncation = "warn"
+rc_mutex = "warn"
+debug_assert_with_mut_call = "warn"
+iter_not_returning_iterator = "warn"
+expl_impl_clone_on_copy = "warn"
+infallible_try_from = "warn"
+dbg_macro = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"

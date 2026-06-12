@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use fast_image_resize::FilterType;
 use serde::Deserialize;
+use smart_default::SmartDefault;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -18,67 +19,40 @@ pub struct ImageConfig {
     pub path: PathBuf,
 }
 
-#[serde_inline_default::serde_inline_default]
-#[derive(Deserialize, Debug)]
+#[derive(SmartDefault, Deserialize, Debug)]
+#[serde(default)]
 pub struct ResizeConfig {
-    #[serde_inline_default(ResizeStrategy::Crop)]
+    #[default(_code = "ResizeStrategy::Crop")]
     pub strategy: ResizeStrategy,
-    #[serde_inline_default(CropGravity::Center)]
+    #[default(_code = "CropGravity::Center")]
     pub crop_gravity: CropGravity,
-    #[serde_inline_default([0x00, 0x00, 0x00, 0xFF])]
+    #[default(_code = "[0x00, 0x00, 0x00, 0xFF]")]
     pub fill_color: [u8; 4],
-    #[serde_inline_default(Filter::Lanczos3)]
+    #[default(_code = "Filter::Lanczos3")]
     pub filter: Filter,
 }
 
-impl Default for ResizeConfig {
-    fn default() -> Self {
-        Self {
-            strategy: ResizeStrategy::Crop,
-            crop_gravity: CropGravity::Center,
-            fill_color: [0x00, 0x00, 0x00, 0xFF],
-            filter: Filter::Lanczos3,
-        }
-    }
-}
-
-#[serde_inline_default::serde_inline_default]
-#[derive(Deserialize, Debug)]
+#[derive(SmartDefault, Deserialize, Debug)]
+#[serde(default)]
 pub struct TransitionConfig {
-    #[serde_inline_default(TransitionType::Simple)]
+    #[default(_code = "TransitionType::Simple")]
     pub transition_type: TransitionType,
-    #[serde_inline_default(3.0_f32)]
+    #[default = 3.0]
     pub duration: f32,
-    #[serde_inline_default(30_u16)]
+    #[default = 30]
     pub fps: u16,
-    #[serde_inline_default(90_u8)]
+    #[default = 90]
     pub step: u8,
-    #[serde_inline_default(45.0_f64)]
+    #[default = 45.0]
     pub angle: f64,
-    #[serde(default)]
+    #[default(_code = "Position::default()")]
     pub pos: Position,
-    #[serde_inline_default((0.54_f32, 0.0_f32, 0.34_f32, 0.99_f32))]
+    #[default(_code = "(0.54, 0.0, 0.34, 0.99)")]
     pub bezier: (f32, f32, f32, f32),
-    #[serde_inline_default((20.0_f32, 20.0_f32))]
+    #[default(_code = "(20.0, 20.0)")]
     pub wave: (f32, f32),
-    #[serde_inline_default(false)]
+    #[default = false]
     pub invert_y: bool,
-}
-
-impl Default for TransitionConfig {
-    fn default() -> Self {
-        Self {
-            transition_type: TransitionType::Simple,
-            duration: 3.0,
-            fps: 30,
-            step: 90,
-            angle: 45.0,
-            pos: Position::default(),
-            bezier: (0.54, 0.0, 0.34, 0.99),
-            wave: (20.0, 20.0),
-            invert_y: false,
-        }
-    }
 }
 
 #[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -161,19 +135,12 @@ pub enum Coord {
     Percent(f32),
 }
 
-#[derive(Deserialize, Debug, Clone, Copy)]
+#[derive(SmartDefault, Deserialize, Debug, Clone, Copy)]
 pub struct Position {
+    #[default(_code = "Coord::Percent(0.5)")]
     pub x: Coord,
+    #[default(_code = "Coord::Percent(0.5)")]
     pub y: Coord,
-}
-
-impl Default for Position {
-    fn default() -> Self {
-        Self {
-            x: Coord::Percent(0.5),
-            y: Coord::Percent(0.5),
-        }
-    }
 }
 
 impl Position {
@@ -209,24 +176,16 @@ impl Config {
     }
 
     fn path() -> Result<PathBuf> {
-        let base = std::env::var_os("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
-            .context("neither $XDG_CONFIG_HOME nor $HOME is set")?;
-
+        let base = dirs::config_dir().context("cannot determine config directory")?;
         Ok(base.join("wallpaper-rs").join("config.toml"))
     }
 
     fn validate(&self) -> Result<()> {
         if !self.image.path.is_absolute() {
-            anyhow::bail!(
-                "image path must be absolute, got: {}",
-                self.image.path.display()
-            );
+            anyhow::bail!("image path must be absolute, got: {}", self.image.path.display());
         }
 
-        let meta = std::fs::metadata(&self.image.path)
-            .with_context(|| format!("cannot access image: {}", self.image.path.display()))?;
+        let meta = std::fs::metadata(&self.image.path).with_context(|| format!("cannot access image: {}", self.image.path.display()))?;
 
         if !meta.is_file() {
             anyhow::bail!("{} is not a regular file", self.image.path.display());
@@ -242,37 +201,19 @@ mod tests {
 
     #[test]
     fn validate_rejects_relative_path() {
-        let config = Config {
-            image: ImageConfig {
-                path: PathBuf::from("relative/wallpaper.png"),
-            },
-            transition: TransitionConfig::default(),
-            resize: ResizeConfig::default(),
-        };
+        let config = Config { image: ImageConfig { path: PathBuf::from("relative/wallpaper.png") }, transition: TransitionConfig::default(), resize: ResizeConfig::default() };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn validate_rejects_nonexistent_file() {
-        let config = Config {
-            image: ImageConfig {
-                path: PathBuf::from("/nonexistent/wallpaper.png"),
-            },
-            transition: TransitionConfig::default(),
-            resize: ResizeConfig::default(),
-        };
+        let config = Config { image: ImageConfig { path: PathBuf::from("/nonexistent/wallpaper.png") }, transition: TransitionConfig::default(), resize: ResizeConfig::default() };
         assert!(config.validate().is_err());
     }
 
     #[test]
     fn validate_accepts_existing_file() {
-        let config = Config {
-            image: ImageConfig {
-                path: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml"),
-            },
-            transition: TransitionConfig::default(),
-            resize: ResizeConfig::default(),
-        };
+        let config = Config { image: ImageConfig { path: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml") }, transition: TransitionConfig::default(), resize: ResizeConfig::default() };
         assert!(config.validate().is_ok());
     }
 
@@ -303,27 +244,18 @@ mod tests {
 
     #[test]
     fn position_to_pixel_center() {
-        assert_eq!(
-            Position::default().to_pixel((1920, 1080), false),
-            (960.0, 540.0)
-        );
+        assert_eq!(Position::default().to_pixel((1920, 1080), false), (960.0, 540.0));
     }
 
     #[test]
     fn position_to_pixel_top_left() {
-        let pos = Position {
-            x: Coord::Percent(0.0),
-            y: Coord::Percent(1.0),
-        };
+        let pos = Position { x: Coord::Percent(0.0), y: Coord::Percent(1.0) };
         assert_eq!(pos.to_pixel((1920, 1080), false), (0.0, 0.0));
     }
 
     #[test]
     fn position_to_pixel_invert_y() {
-        let pos = Position {
-            x: Coord::Percent(0.5),
-            y: Coord::Percent(0.0),
-        };
+        let pos = Position { x: Coord::Percent(0.5), y: Coord::Percent(0.0) };
         assert_eq!(pos.to_pixel((1920, 1080), true), (960.0, 0.0));
     }
 }
