@@ -31,6 +31,7 @@ image = { version = "0.25.10", default-features = false, features = [
 jxl-oxide = { version = "0.12.6", features = ["image"] }
 resvg = { version = "0.47.0", default-features = false }
 serde = { version = "1.0.228", features = ["derive"] }
+serde-inline-default = "1.0.1"
 smithay-client-toolkit = "0.20.0"
 toml = "1.1.2"
 tracing = { version = "0.1.44", default-features = false, features = [

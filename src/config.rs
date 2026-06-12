@@ -18,16 +18,67 @@ pub struct ImageConfig {
     pub path: PathBuf,
 }
 
+#[serde_inline_default::serde_inline_default]
 #[derive(Deserialize, Debug)]
 pub struct ResizeConfig {
-    #[serde(default = "default_resize_strategy")]
+    #[serde_inline_default(ResizeStrategy::Crop)]
     pub strategy: ResizeStrategy,
-    #[serde(default = "default_crop_gravity")]
+    #[serde_inline_default(CropGravity::Center)]
     pub crop_gravity: CropGravity,
-    #[serde(default = "default_fill_color")]
+    #[serde_inline_default([0x00, 0x00, 0x00, 0xFF])]
     pub fill_color: [u8; 4],
-    #[serde(default = "default_filter")]
+    #[serde_inline_default(Filter::Lanczos3)]
     pub filter: Filter,
+}
+
+impl Default for ResizeConfig {
+    fn default() -> Self {
+        Self {
+            strategy: ResizeStrategy::Crop,
+            crop_gravity: CropGravity::Center,
+            fill_color: [0x00, 0x00, 0x00, 0xFF],
+            filter: Filter::Lanczos3,
+        }
+    }
+}
+
+#[serde_inline_default::serde_inline_default]
+#[derive(Deserialize, Debug)]
+pub struct TransitionConfig {
+    #[serde_inline_default(TransitionType::Simple)]
+    pub transition_type: TransitionType,
+    #[serde_inline_default(3.0_f32)]
+    pub duration: f32,
+    #[serde_inline_default(30_u16)]
+    pub fps: u16,
+    #[serde_inline_default(90_u8)]
+    pub step: u8,
+    #[serde_inline_default(45.0_f64)]
+    pub angle: f64,
+    #[serde(default)]
+    pub pos: Position,
+    #[serde_inline_default((0.54_f32, 0.0_f32, 0.34_f32, 0.99_f32))]
+    pub bezier: (f32, f32, f32, f32),
+    #[serde_inline_default((20.0_f32, 20.0_f32))]
+    pub wave: (f32, f32),
+    #[serde_inline_default(false)]
+    pub invert_y: bool,
+}
+
+impl Default for TransitionConfig {
+    fn default() -> Self {
+        Self {
+            transition_type: TransitionType::Simple,
+            duration: 3.0,
+            fps: 30,
+            step: 90,
+            angle: 45.0,
+            pos: Position::default(),
+            bezier: (0.54, 0.0, 0.34, 0.99),
+            wave: (20.0, 20.0),
+            invert_y: false,
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,17 +105,17 @@ pub enum CropGravity {
 }
 
 impl CropGravity {
-    pub fn as_centering_tuple(self) -> (f64, f64) {
+    pub fn as_centering(self) -> (f64, f64) {
         match self {
-            CropGravity::TopLeft => (0.0, 0.0),
-            CropGravity::Top => (0.5, 0.0),
-            CropGravity::TopRight => (1.0, 0.0),
-            CropGravity::Left => (0.0, 0.5),
-            CropGravity::Center => (0.5, 0.5),
-            CropGravity::Right => (1.0, 0.5),
-            CropGravity::BottomLeft => (0.0, 1.0),
-            CropGravity::Bottom => (0.5, 1.0),
-            CropGravity::BottomRight => (1.0, 1.0),
+            Self::TopLeft => (0.0, 0.0),
+            Self::Top => (0.5, 0.0),
+            Self::TopRight => (1.0, 0.0),
+            Self::Left => (0.0, 0.5),
+            Self::Center => (0.5, 0.5),
+            Self::Right => (1.0, 0.5),
+            Self::BottomLeft => (0.0, 1.0),
+            Self::Bottom => (0.5, 1.0),
+            Self::BottomRight => (1.0, 1.0),
         }
     }
 }
@@ -79,9 +130,9 @@ pub enum Filter {
     Lanczos3,
 }
 
-impl Filter {
-    pub fn to_fast_image_resize(self) -> FilterType {
-        match self {
+impl From<Filter> for FilterType {
+    fn from(f: Filter) -> Self {
+        match f {
             Filter::Nearest => FilterType::Box,
             Filter::Bilinear => FilterType::Bilinear,
             Filter::CatmullRom => FilterType::CatmullRom,
@@ -126,112 +177,18 @@ impl Default for Position {
 }
 
 impl Position {
-    pub fn to_pixel(&self, dim: (u32, u32), invert_y: bool) -> (f32, f32) {
+    pub fn to_pixel(self, dim: (u32, u32), invert_y: bool) -> (f32, f32) {
         let x = match self.x {
-            Coord::Pixel(x) => x,
-            Coord::Percent(x) => x * dim.0 as f32,
+            Coord::Pixel(v) => v,
+            Coord::Percent(v) => v * dim.0 as f32,
         };
         let y = match self.y {
-            Coord::Pixel(y) => {
-                if invert_y {
-                    y
-                } else {
-                    dim.1 as f32 - y
-                }
-            }
-            Coord::Percent(y) => {
-                if invert_y {
-                    y * dim.1 as f32
-                } else {
-                    (1.0 - y) * dim.1 as f32
-                }
-            }
+            Coord::Pixel(v) if invert_y => v,
+            Coord::Pixel(v) => dim.1 as f32 - v,
+            Coord::Percent(v) if invert_y => v * dim.1 as f32,
+            Coord::Percent(v) => (1.0 - v) * dim.1 as f32,
         };
         (x, y)
-    }
-}
-
-#[derive(Deserialize, Debug)]
-pub struct TransitionConfig {
-    #[serde(default = "default_transition_type")]
-    pub r#type: TransitionType,
-    #[serde(default = "default_duration")]
-    pub duration: f32,
-    #[serde(default = "default_fps")]
-    pub fps: u16,
-    #[serde(default = "default_step")]
-    pub step: u8,
-    #[serde(default = "default_angle")]
-    pub angle: f64,
-    #[serde(default)]
-    pub pos: Position,
-    #[serde(default = "default_bezier")]
-    pub bezier: (f32, f32, f32, f32),
-    #[serde(default = "default_wave")]
-    pub wave: (f32, f32),
-    #[serde(default)]
-    pub invert_y: bool,
-}
-
-fn default_resize_strategy() -> ResizeStrategy {
-    ResizeStrategy::Crop
-}
-fn default_crop_gravity() -> CropGravity {
-    CropGravity::Center
-}
-fn default_fill_color() -> [u8; 4] {
-    [0x00, 0x00, 0x00, 0xFF]
-}
-fn default_filter() -> Filter {
-    Filter::Lanczos3
-}
-
-fn default_transition_type() -> TransitionType {
-    TransitionType::Simple
-}
-fn default_duration() -> f32 {
-    3.0
-}
-fn default_fps() -> u16 {
-    30
-}
-fn default_step() -> u8 {
-    90
-}
-fn default_angle() -> f64 {
-    45.0
-}
-fn default_bezier() -> (f32, f32, f32, f32) {
-    (0.54, 0.0, 0.34, 0.99)
-}
-fn default_wave() -> (f32, f32) {
-    (20.0, 20.0)
-}
-
-impl Default for ResizeConfig {
-    fn default() -> Self {
-        Self {
-            strategy: default_resize_strategy(),
-            crop_gravity: default_crop_gravity(),
-            fill_color: default_fill_color(),
-            filter: default_filter(),
-        }
-    }
-}
-
-impl Default for TransitionConfig {
-    fn default() -> Self {
-        Self {
-            r#type: default_transition_type(),
-            duration: default_duration(),
-            fps: default_fps(),
-            step: default_step(),
-            angle: default_angle(),
-            pos: Position::default(),
-            bezier: default_bezier(),
-            wave: default_wave(),
-            invert_y: false,
-        }
     }
 }
 
@@ -242,13 +199,12 @@ impl Config {
         let config: Self = toml::from_str(&raw).context("cannot parse config file")?;
         config.validate()?;
         tracing::info!(
-            image = %config.image.path.display(),
-            resize = ?config.resize.strategy,
+            image        = %config.image.path.display(),
+            resize       = ?config.resize.strategy,
             crop_gravity = ?config.resize.crop_gravity,
-            transition = ?config.transition.r#type,
+            transition   = ?config.transition.transition_type,
             "config loaded"
         );
-
         Ok(config)
     }
 
@@ -271,6 +227,7 @@ impl Config {
 
         let meta = std::fs::metadata(&self.image.path)
             .with_context(|| format!("cannot access image: {}", self.image.path.display()))?;
+
         if !meta.is_file() {
             anyhow::bail!("{} is not a regular file", self.image.path.display());
         }
@@ -322,7 +279,7 @@ mod tests {
     #[test]
     fn default_transition_config() {
         let tc = TransitionConfig::default();
-        assert_eq!(tc.r#type, TransitionType::Simple);
+        assert_eq!(tc.transition_type, TransitionType::Simple);
         assert_eq!(tc.duration, 3.0);
         assert_eq!(tc.fps, 30);
         assert_eq!(tc.step, 90);
@@ -339,15 +296,17 @@ mod tests {
 
     #[test]
     fn crop_gravity_centering() {
-        assert_eq!(CropGravity::TopLeft.as_centering_tuple(), (0.0, 0.0));
-        assert_eq!(CropGravity::Center.as_centering_tuple(), (0.5, 0.5));
-        assert_eq!(CropGravity::BottomRight.as_centering_tuple(), (1.0, 1.0));
+        assert_eq!(CropGravity::TopLeft.as_centering(), (0.0, 0.0));
+        assert_eq!(CropGravity::Center.as_centering(), (0.5, 0.5));
+        assert_eq!(CropGravity::BottomRight.as_centering(), (1.0, 1.0));
     }
 
     #[test]
     fn position_to_pixel_center() {
-        let pos = Position::default();
-        assert_eq!(pos.to_pixel((1920, 1080), false), (960.0, 540.0));
+        assert_eq!(
+            Position::default().to_pixel((1920, 1080), false),
+            (960.0, 540.0)
+        );
     }
 
     #[test]

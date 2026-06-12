@@ -208,7 +208,7 @@ impl Render {
         dst: &mut [u8],
         resize: &ResizeConfig,
     ) -> Result<()> {
-        let filter = resize.filter.to_fast_image_resize();
+        let filter = resize.filter.into();
 
         let (src_w, src_h) = self.dimensions();
         let rgba = self.to_rgba(src_w, src_h)?;
@@ -240,7 +240,7 @@ impl Render {
         frames: &[AnimatedFrame],
         resize: &ResizeConfig,
     ) -> Result<Vec<AnimatedFrame>> {
-        let filter = resize.filter.to_fast_image_resize();
+        let filter = resize.filter.into();
         let mut out = Vec::with_capacity(frames.len());
 
         for frame in frames {
@@ -326,7 +326,7 @@ fn resize_crop(
     let src = ImageRef::new(src_w, src_h, raw.as_ref(), PixelType::U8x4)
         .context("failed to create image reference for crop resize")?;
 
-    let centering_tuple = gravity.as_centering_tuple();
+    let centering_tuple = gravity.as_centering();
     let mut dst = Image::new(width, height, PixelType::U8x4);
     let mut resizer = Resizer::new();
     let options = ResizeOptions::new()

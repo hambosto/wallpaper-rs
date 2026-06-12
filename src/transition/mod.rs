@@ -17,7 +17,7 @@ pub struct Transition {
 impl Transition {
     pub fn new(config: &TransitionConfig, dimensions: (u32, u32), target: Vec<u8>) -> Self {
         tracing::info!(
-            transition_type = ?config.r#type,
+            transition_type = ?&config.transition_type,
             duration = config.duration,
             fps = config.fps,
             "creating transition"

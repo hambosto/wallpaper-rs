@@ -257,7 +257,7 @@ impl WaylandState {
         tracing::info!(
             count = self.pending_surfaces.len(),
             image = %image.display(),
-            transition = ?transition.r#type,
+            transition = ?&transition.transition_type,
             resize = ?resize.strategy,
             "applying wallpapers"
         );
@@ -293,7 +293,7 @@ impl WaylandState {
             .map(|f| renderer.render_animation_frames(w, h, f, resize))
             .transpose()?;
 
-        match transition.r#type {
+        match transition.transition_type {
             TransitionType::None => {
                 self.commit_static(pending, pixels, anim_frames, buf_size, stride, queue_handle)
             }

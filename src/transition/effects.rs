@@ -13,7 +13,7 @@ pub(crate) enum Effect {
 impl Effect {
     pub fn new(config: &TransitionConfig, dimensions: (u32, u32)) -> Self {
         use crate::config::TransitionType as T;
-        match config.r#type {
+        match config.transition_type {
             T::None => Self::None,
             T::Simple => Self::Simple(Simple::new(2)),
             T::Fade => Self::Fade(Fade::new(config.bezier, config.duration)),
