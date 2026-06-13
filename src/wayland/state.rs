@@ -23,12 +23,13 @@ pub(super) struct Surface {
     pub(super) width: u32,
     pub(super) height: u32,
     pub(super) pixels: Vec<u8>,
+    pub(super) pool: Option<RawPool>,
     pub(super) transition: Option<Transition>,
 }
 
 impl Surface {
     fn new(layer_surface: LayerSurface, width: u32, height: u32) -> Self {
-        Self { layer_surface, width, height, pixels: vec![0u8; (width * height * 4) as usize], transition: None }
+        Self { layer_surface, width, height, pixels: vec![0u8; (width * height * 4) as usize], pool: None, transition: None }
     }
 
     fn tick(&mut self) -> bool {
@@ -41,16 +42,21 @@ impl Surface {
             let (w, h) = transition.dimensions();
             tracing::info!(width = w, height = h, "transition completed");
             self.transition = None;
+            self.pool = None;
         }
 
         !finished
     }
 
-    fn commit(&self, shm: &Shm, qh: &QueueHandle<WaylandState>) -> Result<()> {
-        let mut pool = RawPool::new(((self.width * 4) * self.height) as usize, shm).context("failed to allocate shm pool for commit")?;
+    fn commit(&mut self, shm: &Shm, queue_handle: &QueueHandle<WaylandState>) -> Result<()> {
+        let needed = (self.width * 4 * self.height) as usize;
+        if self.pool.as_ref().is_none_or(|p| p.len() < needed) {
+            self.pool = Some(RawPool::new(needed, shm).context("failed to allocate shm pool for commit")?);
+        }
+        let pool = self.pool.as_mut().context("shm pool not initialized")?;
         pool.mmap().copy_from_slice(&self.pixels);
 
-        let buffer = pool.create_buffer(0, self.width.cast_signed(), self.height.cast_signed(), (self.width * 4).cast_signed(), Format::Xrgb8888, (), qh);
+        let buffer = pool.create_buffer(0, self.width.cast_signed(), self.height.cast_signed(), (self.width * 4).cast_signed(), Format::Xrgb8888, (), queue_handle);
         let wl_surface = self.layer_surface.wl_surface();
 
         wl_surface.attach(Some(&buffer), 0, 0);
@@ -133,11 +139,9 @@ impl WaylandState {
         }
 
         for surface in &mut self.surfaces {
-            let mut pool = RawPool::new(((surface.width * 4) * surface.height) as usize, &self.shm).context("failed to create shm pool for render")?;
-            let pixels = pool.mmap();
-
-            renderer.render(surface.width, surface.height, pixels, &config.resize)?;
-            surface.transition = Some(Transition::new(&config.transition, (surface.width, surface.height), pixels.to_vec()));
+            let mut target = vec![0u8; (surface.width * surface.height * 4) as usize];
+            renderer.render(surface.width, surface.height, &mut target, &config.resize)?;
+            surface.transition = Some(Transition::new(&config.transition, (surface.width, surface.height), target));
         }
 
         self.start_animation(config, loop_handle, queue_handle)?;
@@ -181,6 +185,7 @@ impl WaylandState {
                 tracing::info!(width = surface.width, height = surface.height, "interrupting active transition");
             }
             surface.transition = None;
+            surface.pool = None;
         }
     }
 
@@ -192,6 +197,12 @@ impl WaylandState {
                 any_running = true;
             }
             surface.commit(&self.shm, queue_handle)?;
+        }
+
+        if !any_running {
+            for surface in &mut self.surfaces {
+                surface.pool = None;
+            }
         }
 
         Ok(any_running)
