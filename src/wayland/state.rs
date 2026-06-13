@@ -1,5 +1,4 @@
-use std::path::Path;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use smithay_client_toolkit::compositor::CompositorState;
@@ -13,101 +12,53 @@ use smithay_client_toolkit::shm::Shm;
 use smithay_client_toolkit::shm::raw::RawPool;
 use wayland_client::QueueHandle;
 use wayland_client::globals::GlobalList;
-use wayland_client::protocol::wl_buffer::WlBuffer;
-use wayland_client::protocol::wl_shm::Format::Xrgb8888;
-use wayland_client::protocol::wl_surface::WlSurface;
+use wayland_client::protocol::wl_shm::Format;
 
-use crate::config::{ResizeConfig, TransitionConfig, TransitionType};
-use crate::render::{AnimatedFrame, Render};
+use crate::config::Config;
+use crate::render::Render;
 use crate::transition::Transition;
 
-pub(super) struct PendingSurface {
+pub(super) struct Surface {
     pub(super) layer_surface: LayerSurface,
     pub(super) width: u32,
     pub(super) height: u32,
-}
-
-pub(super) struct CommittedSurface {
-    pub(super) layer_surface: LayerSurface,
-    pub(super) pool: RawPool,
-    pub(super) buffer_a: WlBuffer,
-    pub(super) buffer_b: WlBuffer,
-    pub(super) front: usize,
+    pub(super) pixels: Vec<u8>,
     pub(super) transition: Option<Transition>,
-    pub(super) frame_callback: Option<wayland_client::protocol::wl_callback::WlCallback>,
-    pub(super) anim_frames: Vec<AnimatedFrame>,
-    pub(super) anim_current: usize,
-    pub(super) anim_last_frame: Instant,
-    pub(super) width: u32,
-    pub(super) height: u32,
 }
 
-impl CommittedSurface {
-    fn buf_size(&self) -> usize {
-        (self.width * 4 * self.height) as usize
+impl Surface {
+    fn new(layer_surface: LayerSurface, width: u32, height: u32) -> Self {
+        Self { layer_surface, width, height, pixels: vec![0u8; (width * height * 4) as usize], transition: None }
     }
 
-    fn active_buffer(&self) -> &WlBuffer {
-        if self.front == 0 { &self.buffer_a } else { &self.buffer_b }
-    }
-
-    fn swap_front(&mut self) -> usize {
-        self.front = 1 - self.front;
-        self.front * self.buf_size()
-    }
-
-    fn present(&mut self, pixels: &[u8]) {
-        let buf_size = self.buf_size();
-        let offset = self.swap_front();
-        let dst = self.pool.mmap();
-        dst[offset..offset + pixels.len().min(buf_size)].copy_from_slice(&pixels[..pixels.len().min(buf_size)]);
-
-        let surface = self.layer_surface.wl_surface();
-        surface.attach(Some(self.active_buffer()), 0, 0);
-        surface.damage_buffer(0, 0, self.width.cast_signed(), self.height.cast_signed());
-        self.layer_surface.commit();
-    }
-
-    pub(super) fn tick_animation(&mut self) {
-        if self.transition.is_some() || self.anim_frames.is_empty() {
-            return;
-        }
-
-        let frame = &self.anim_frames[self.anim_current];
-        if self.anim_last_frame.elapsed().as_millis() < frame.delay_ms as u128 {
-            return;
-        }
-
-        let pixels = frame.pixels.clone();
-        self.anim_current = (self.anim_current + 1) % self.anim_frames.len();
-        self.anim_last_frame = Instant::now();
-        self.present(&pixels);
-    }
-
-    pub(super) fn advance_transition(&mut self, qh: &QueueHandle<WaylandState>) {
-        let Some(ref mut transition) = self.transition else {
-            return;
+    fn tick(&mut self) -> bool {
+        let Some(transition) = &mut self.transition else {
+            return false;
         };
 
-        if transition.is_done() {
-            tracing::info!("transition complete");
+        let finished = transition.frame(&mut self.pixels);
+        if finished {
+            let (w, h) = transition.dimensions();
+            tracing::info!(width = w, height = h, "transition completed");
             self.transition = None;
-            self.frame_callback = None;
-            return;
         }
 
-        let (w, h) = transition.dimensions();
-        let buf_size = (w * 4 * h) as usize;
-        self.front = 1 - self.front;
-        let offset = self.front * buf_size;
+        !finished
+    }
 
-        transition.frame(&mut self.pool.mmap()[offset..offset + buf_size]);
+    fn commit(&self, shm: &Shm, qh: &QueueHandle<WaylandState>) -> Result<()> {
+        let mut pool = RawPool::new(((self.width * 4) * self.height) as usize, shm).context("failed to allocate shm pool for commit")?;
+        pool.mmap().copy_from_slice(&self.pixels);
 
-        let surface = self.layer_surface.wl_surface();
-        surface.attach(Some(self.active_buffer()), 0, 0);
-        surface.damage_buffer(0, 0, w.cast_signed(), h.cast_signed());
-        self.frame_callback = Some(surface.frame(qh, surface.clone()));
+        let buffer = pool.create_buffer(0, self.width.cast_signed(), self.height.cast_signed(), (self.width * 4).cast_signed(), Format::Xrgb8888, (), qh);
+        let wl_surface = self.layer_surface.wl_surface();
+
+        wl_surface.attach(Some(&buffer), 0, 0);
+        wl_surface.damage_buffer(0, 0, self.width.cast_signed(), self.height.cast_signed());
+
         self.layer_surface.commit();
+
+        Ok(())
     }
 }
 
@@ -117,26 +68,26 @@ pub(super) struct WaylandState {
     pub(super) compositor: CompositorState,
     pub(super) layer_shell: LayerShell,
     pub(super) shm: Shm,
-    pub(super) pending_surfaces: Vec<PendingSurface>,
-    pub(super) committed: Vec<CommittedSurface>,
-    pub(super) animation_timer: Option<RegistrationToken>,
+    pub(super) pending: Vec<Surface>,
+    pub(super) surfaces: Vec<Surface>,
+    animation_token: Option<RegistrationToken>,
 }
 
 impl WaylandState {
-    pub(super) fn bind(global_list: &GlobalList, qh: &QueueHandle<Self>) -> Result<Self> {
+    pub(super) fn bind(global_list: &GlobalList, queue_handle: &QueueHandle<Self>) -> Result<Self> {
         Ok(Self {
             registry_state: RegistryState::new(global_list),
-            output_state: OutputState::new(global_list, qh),
-            compositor: CompositorState::bind(global_list, qh).context("wl_compositor not available")?,
-            layer_shell: LayerShell::bind(global_list, qh).context("zwlr_layer_shell_v1 not available")?,
-            shm: Shm::bind(global_list, qh).context("wl_shm not available")?,
-            pending_surfaces: Vec::new(),
-            committed: Vec::new(),
-            animation_timer: None,
+            output_state: OutputState::new(global_list, queue_handle),
+            compositor: CompositorState::bind(global_list, queue_handle).context("wl_compositor not available")?,
+            layer_shell: LayerShell::bind(global_list, queue_handle).context("zwlr_layer_shell_v1 not available")?,
+            shm: Shm::bind(global_list, queue_handle).context("wl_shm not available")?,
+            pending: Vec::new(),
+            surfaces: Vec::new(),
+            animation_token: None,
         })
     }
 
-    pub(super) fn create_surfaces(&mut self, qh: &QueueHandle<Self>) {
+    pub(super) fn create_surfaces(&mut self, queue_handle: &QueueHandle<Self>) {
         for handle in self.output_state.outputs() {
             let Some(info) = self.output_state.info(&handle) else {
                 continue;
@@ -150,133 +101,99 @@ impl WaylandState {
                 continue;
             };
 
-            let surface = self.compositor.create_surface(qh);
-            let layer_surface = self.layer_shell.create_layer_surface(qh, surface, Layer::Background, Some("wallpaper-rs"), Some(&handle));
+            let wl_surface = self.compositor.create_surface(queue_handle);
+            let layer_surface = self.layer_shell.create_layer_surface(queue_handle, wl_surface, Layer::Background, Some("wallpaper-rs"), Some(&handle));
 
             layer_surface.set_anchor(Anchor::all());
             layer_surface.set_exclusive_zone(-1);
             layer_surface.set_size(0, 0);
             layer_surface.commit();
 
-            self.pending_surfaces.push(PendingSurface { layer_surface, width: w.cast_unsigned(), height: h.cast_unsigned() });
+            self.pending.push(Surface::new(layer_surface, w.cast_unsigned(), h.cast_unsigned()));
         }
 
-        tracing::info!(count = self.pending_surfaces.len(), "surfaces created");
+        tracing::info!(count = self.pending.len(), "surfaces created");
     }
 
-    pub(super) fn start_animation_timer(&mut self, handle: &LoopHandle<'static, WaylandState>) -> Result<()> {
-        if self.animation_timer.is_some() {
-            return Ok(());
-        }
-        if !self.committed.iter().any(|cs| !cs.anim_frames.is_empty()) {
-            return Ok(());
-        }
-
-        tracing::info!("starting animation timer");
-
-        let token = handle
-            .insert_source(Timer::immediate(), |_, _, state| {
-                for cs in &mut state.committed {
-                    cs.tick_animation();
-                }
-                TimeoutAction::ToDuration(Duration::from_millis(16))
-            })
-            .map_err(|e| anyhow::anyhow!("failed to insert animation timer: {e}"))?;
-
-        self.animation_timer = Some(token);
-        Ok(())
-    }
-
-    pub(super) fn set_wallpapers(&mut self, image: &Path, transition: &TransitionConfig, resize: &ResizeConfig, qh: &QueueHandle<Self>) -> Result<()> {
-        if self.pending_surfaces.is_empty() {
+    pub(super) fn apply_wallpaper(&mut self, config: &Config, loop_handle: &LoopHandle<'_, Self>, queue_handle: &QueueHandle<Self>) -> Result<()> {
+        if self.pending.is_empty() && self.surfaces.is_empty() {
             anyhow::bail!("no surfaces were configured by the compositor");
         }
 
-        tracing::info!(
-            count = self.pending_surfaces.len(),
-            image = %image.display(),
-            transition = ?transition.transition_type,
-            resize = ?resize.strategy,
-            "applying wallpapers"
-        );
+        tracing::info!(image = %config.image.path.display(), "applying wallpaper");
+        let renderer = Render::new(&config.image.path)?;
 
-        let renderer = Render::new(image)?;
-        let surfaces = std::mem::take(&mut self.pending_surfaces);
+        self.stop_animation(loop_handle);
 
-        for surface in surfaces {
-            self.commit_surface(surface, &renderer, transition, resize, qh)?;
-        }
-
-        Ok(())
-    }
-
-    fn commit_surface(&mut self, pending: PendingSurface, renderer: &Render, transition_cfg: &TransitionConfig, resize: &ResizeConfig, qh: &QueueHandle<Self>) -> Result<()> {
-        let (w, h) = (pending.width, pending.height);
-        let buf_size = (w * 4 * h) as usize;
-        let stride = w * 4;
-
-        let mut pixels = vec![0u8; buf_size];
-        renderer.render(w, h, &mut pixels, resize)?;
-
-        let anim_frames: Vec<AnimatedFrame> = renderer.animation_frames().map(|f| renderer.render_animation_frames(w, h, f, resize)).transpose()?.unwrap_or_default();
-
-        let with_transition = !matches!(transition_cfg.transition_type, TransitionType::None);
-        let needs_double_buf = with_transition || !anim_frames.is_empty();
-
-        let pool_size = if needs_double_buf { buf_size * 2 } else { buf_size };
-        let mut pool = RawPool::new(pool_size, &self.shm).context("failed to create shm pool")?;
-
-        if !with_transition {
-            pool.mmap()[..buf_size].copy_from_slice(&pixels);
-        }
-
-        let (buffer_a, buffer_b) = alloc_buffers(&mut pool, w, h, stride, buf_size, needs_double_buf, qh);
-
-        let wl_surface = pending.layer_surface.wl_surface();
-        wl_surface.attach(Some(&buffer_a), 0, 0);
-        wl_surface.damage_buffer(0, 0, w.cast_signed(), h.cast_signed());
-
-        let (transition, frame_callback) = if with_transition {
-            let t = Transition::new(transition_cfg, (w, h), pixels);
-            tracing::info!(w, h, "transition starting");
-            let cb = wl_surface.frame(qh, wl_surface.clone());
-            (Some(t), Some(cb))
+        if self.surfaces.is_empty() {
+            self.surfaces = std::mem::take(&mut self.pending);
+            tracing::info!(count = self.surfaces.len(), "initial wallpaper (transitioning from black)");
         } else {
-            let cb = (!anim_frames.is_empty()).then(|| wl_surface.frame(qh, wl_surface.clone()));
-            (None, cb)
-        };
+            tracing::info!(count = self.surfaces.len(), "transitioning to new wallpaper");
+        }
 
-        pending.layer_surface.commit();
+        for surface in &mut self.surfaces {
+            let mut pool = RawPool::new(((surface.width * 4) * surface.height) as usize, &self.shm).context("failed to create shm pool for render")?;
+            let pixels = pool.mmap();
 
-        self.committed.push(CommittedSurface {
-            layer_surface: pending.layer_surface,
-            pool,
-            buffer_a,
-            buffer_b,
-            front: 0,
-            transition,
-            frame_callback,
-            anim_frames,
-            anim_current: 0,
-            anim_last_frame: Instant::now(),
-            width: w,
-            height: h,
-        });
+            renderer.render(surface.width, surface.height, pixels, &config.resize)?;
+            surface.transition = Some(Transition::new(&config.transition, (surface.width, surface.height), pixels.to_vec()));
+        }
+
+        self.start_animation(config, loop_handle, queue_handle)?;
 
         Ok(())
     }
 
-    pub(super) fn advance_transition(&mut self, surface: &WlSurface, qh: &QueueHandle<Self>) {
-        match self.committed.iter_mut().find(|c| c.layer_surface.wl_surface() == surface) {
-            Some(cs) => cs.advance_transition(qh),
-            None => tracing::warn!("frame callback for unknown surface"),
+    fn start_animation(&mut self, config: &Config, loop_handle: &LoopHandle<'_, Self>, queue_handle: &QueueHandle<Self>) -> Result<()> {
+        let interval = Duration::from_millis((1000.0 / config.transition.fps as f64) as u64);
+        let queue_handle = queue_handle.clone();
+
+        tracing::info!(fps = config.transition.fps, interval_ms = interval.as_millis(), "animation timer started");
+
+        let token = loop_handle
+            .insert_source(Timer::from_duration(interval), move |_, _, state: &mut Self| match state.tick_and_commit(&queue_handle) {
+                Ok(true) => TimeoutAction::ToDuration(interval),
+                Ok(false) => {
+                    state.animation_token = None;
+                    TimeoutAction::Drop
+                }
+                Err(err) => {
+                    tracing::error!(?err, "frame commit failed; stopping animation");
+                    state.animation_token = None;
+                    TimeoutAction::Drop
+                }
+            })
+            .map_err(|err| anyhow::anyhow!("failed to insert animation timer: {err}"))?;
+
+        self.animation_token = Some(token);
+
+        Ok(())
+    }
+
+    fn stop_animation(&mut self, loop_handle: &LoopHandle<'_, Self>) {
+        if let Some(token) = self.animation_token.take() {
+            loop_handle.remove(token);
+        }
+
+        for surface in &mut self.surfaces {
+            if surface.transition.as_ref().is_some_and(|t| !t.is_done()) {
+                tracing::info!(width = surface.width, height = surface.height, "interrupting active transition");
+            }
+            surface.transition = None;
         }
     }
-}
 
-fn alloc_buffers(pool: &mut RawPool, width: u32, height: u32, stride: u32, buf_size: usize, double: bool, qh: &QueueHandle<WaylandState>) -> (WlBuffer, WlBuffer) {
-    let mut mk = |offset: i32| pool.create_buffer::<WaylandState, ()>(offset, width.cast_signed(), height.cast_signed(), stride.cast_signed(), Xrgb8888, (), qh);
-    let a = mk(0);
-    let b = if double { mk(buf_size as i32) } else { a.clone() };
-    (a, b)
+    fn tick_and_commit(&mut self, queue_handle: &QueueHandle<Self>) -> Result<bool> {
+        let mut any_running = false;
+
+        for surface in &mut self.surfaces {
+            if surface.tick() {
+                any_running = true;
+            }
+            surface.commit(&self.shm, queue_handle)?;
+        }
+
+        Ok(any_running)
+    }
 }

@@ -36,9 +36,7 @@ impl CompositorHandler for WaylandState {
 
     fn transform_changed(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlSurface, _: Transform) {}
 
-    fn frame(&mut self, _: &Connection, queue_handle: &QueueHandle<Self>, surface: &WlSurface, _: u32) {
-        self.advance_transition(surface, queue_handle);
-    }
+    fn frame(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlSurface, _: u32) {}
 
     fn surface_enter(&mut self, _: &Connection, _: &QueueHandle<Self>, _: &WlSurface, _: &WlOutput) {}
 

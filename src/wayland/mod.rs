@@ -10,25 +10,22 @@ use wayland_client::Connection;
 use crate::config::Config;
 
 pub fn run(config: &Config) -> Result<()> {
+    std::env::var("WAYLAND_DISPLAY").context("WAYLAND_DISPLAY not set — are you in a Wayland session?")?;
+
     let connection = Connection::connect_to_env().context("failed to connect to wayland display")?;
-    let (globals, mut queue) = wayland_client::globals::registry_queue_init::<WaylandState>(&connection).context("failed to initialise globals registry")?;
-    let mut state = WaylandState::bind(&globals, &queue.handle())?;
+    let (global_list, mut event_queue) = wayland_client::globals::registry_queue_init(&connection).context("failed to initialise globals registry")?;
+    let queue_handle = event_queue.handle();
+    let mut state = WaylandState::bind(&global_list, &queue_handle)?;
 
     tracing::info!("connected to wayland display");
 
-    queue.roundtrip(&mut state).context("initial roundtrip failed")?;
+    event_queue.roundtrip(&mut state).context("initial roundtrip failed")?;
+    event_queue.roundtrip(&mut state).context("configure roundtrip failed")?;
 
-    queue.roundtrip(&mut state).context("configure roundtrip failed")?;
+    let mut event_loop = EventLoop::try_new().context("failed to create event loop")?;
+    WaylandSource::new(connection, event_queue).insert(event_loop.handle()).context("failed to insert Wayland source")?;
 
-    state.set_wallpapers(&config.image.path, &config.transition, &config.resize, &queue.handle())?;
-
-    queue.roundtrip(&mut state).context("commit roundtrip failed")?;
-
-    let mut event_loop = EventLoop::<WaylandState>::try_new().context("failed to create event loop")?;
-
-    WaylandSource::new(connection, queue).insert(event_loop.handle()).context("failed to insert Wayland source")?;
-
-    state.start_animation_timer(&event_loop.handle())?;
+    state.apply_wallpaper(config, &event_loop.handle(), &queue_handle)?;
 
     event_loop.run(None, &mut state, |_| {}).context("event loop error")
 }

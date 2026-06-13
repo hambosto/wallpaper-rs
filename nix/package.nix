@@ -3,6 +3,7 @@
   lib,
   pkg-config,
   rustPlatform,
+  rust-jemalloc-sys,
   libxkbcommon,
 }:
 let
@@ -19,13 +20,14 @@ rustPlatform.buildRustPackage (final: {
   pname = "wallpaper-rs";
   version = "unstable-${fmtDate self.lastModifiedDate}-${self.shortRev or "dirty"}";
 
-  src = lib.fileset.toSource {
-    root = ../.;
-    fileset = lib.fileset.unions [
-      ../src
-      ../Cargo.lock
-      ../Cargo.toml
-    ];
+  src = lib.cleanSourceWith {
+    filter =
+      name: _:
+      let
+        baseName = baseNameOf (toString name);
+      in
+      !(lib.hasSuffix ".nix" baseName);
+    src = lib.cleanSource ../.;
   };
 
   cargoLock.lockFile = ../Cargo.lock;
@@ -34,6 +36,7 @@ rustPlatform.buildRustPackage (final: {
 
   buildInputs = [
     libxkbcommon
+    rust-jemalloc-sys
   ];
 
   nativeBuildInputs = [

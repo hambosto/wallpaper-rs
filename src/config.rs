@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use fast_image_resize::FilterType;
@@ -160,102 +160,18 @@ impl Position {
 }
 
 impl Config {
-    pub fn load() -> Result<Self> {
-        let path = Self::path()?;
-        let raw = std::fs::read_to_string(&path).context("cannot read config file")?;
-        let config: Self = toml::from_str(&raw).context("cannot parse config file")?;
-        config.validate()?;
+    pub fn new(path: &Path) -> Result<Self> {
+        let read_config = std::fs::read_to_string(path).context("cannot read from config file")?;
+        let parse_config: Self = toml::from_str(&read_config).context("cannot parse config file")?;
+
         tracing::info!(
-            image        = %config.image.path.display(),
-            resize       = ?config.resize.strategy,
-            crop_gravity = ?config.resize.crop_gravity,
-            transition   = ?config.transition.transition_type,
+            image = %parse_config.image.path.display(),
+            resize = ?parse_config.resize.strategy,
+            crop_gravity = ?parse_config.resize.crop_gravity,
+            transition = ?parse_config.transition.transition_type,
             "config loaded"
         );
-        Ok(config)
-    }
 
-    fn path() -> Result<PathBuf> {
-        let base = dirs::config_dir().context("cannot determine config directory")?;
-        Ok(base.join("wallpaper-rs").join("config.toml"))
-    }
-
-    fn validate(&self) -> Result<()> {
-        if !self.image.path.is_absolute() {
-            anyhow::bail!("image path must be absolute, got: {}", self.image.path.display());
-        }
-
-        let meta = std::fs::metadata(&self.image.path).with_context(|| format!("cannot access image: {}", self.image.path.display()))?;
-
-        if !meta.is_file() {
-            anyhow::bail!("{} is not a regular file", self.image.path.display());
-        }
-
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn validate_rejects_relative_path() {
-        let config = Config { image: ImageConfig { path: PathBuf::from("relative/wallpaper.png") }, transition: TransitionConfig::default(), resize: ResizeConfig::default() };
-        assert!(config.validate().is_err());
-    }
-
-    #[test]
-    fn validate_rejects_nonexistent_file() {
-        let config = Config { image: ImageConfig { path: PathBuf::from("/nonexistent/wallpaper.png") }, transition: TransitionConfig::default(), resize: ResizeConfig::default() };
-        assert!(config.validate().is_err());
-    }
-
-    #[test]
-    fn validate_accepts_existing_file() {
-        let config = Config { image: ImageConfig { path: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml") }, transition: TransitionConfig::default(), resize: ResizeConfig::default() };
-        assert!(config.validate().is_ok());
-    }
-
-    #[test]
-    fn default_transition_config() {
-        let tc = TransitionConfig::default();
-        assert_eq!(tc.transition_type, TransitionType::Simple);
-        assert_eq!(tc.duration, 3.0);
-        assert_eq!(tc.fps, 30);
-        assert_eq!(tc.step, 90);
-        assert!(!tc.invert_y);
-    }
-
-    #[test]
-    fn default_resize_config() {
-        let rc = ResizeConfig::default();
-        assert_eq!(rc.strategy, ResizeStrategy::Crop);
-        assert_eq!(rc.crop_gravity, CropGravity::Center);
-        assert_eq!(rc.fill_color, [0x00, 0x00, 0x00, 0xFF]);
-    }
-
-    #[test]
-    fn crop_gravity_centering() {
-        assert_eq!(CropGravity::TopLeft.as_centering(), (0.0, 0.0));
-        assert_eq!(CropGravity::Center.as_centering(), (0.5, 0.5));
-        assert_eq!(CropGravity::BottomRight.as_centering(), (1.0, 1.0));
-    }
-
-    #[test]
-    fn position_to_pixel_center() {
-        assert_eq!(Position::default().to_pixel((1920, 1080), false), (960.0, 540.0));
-    }
-
-    #[test]
-    fn position_to_pixel_top_left() {
-        let pos = Position { x: Coord::Percent(0.0), y: Coord::Percent(1.0) };
-        assert_eq!(pos.to_pixel((1920, 1080), false), (0.0, 0.0));
-    }
-
-    #[test]
-    fn position_to_pixel_invert_y() {
-        let pos = Position { x: Coord::Percent(0.5), y: Coord::Percent(0.0) };
-        assert_eq!(pos.to_pixel((1920, 1080), true), (960.0, 0.0));
+        Ok(parse_config)
     }
 }
