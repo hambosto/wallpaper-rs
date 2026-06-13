@@ -4,12 +4,11 @@ mod transition;
 mod wayland;
 
 use anyhow::{Context, Result};
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
 use xdg::BaseDirectories;
 
 use crate::config::Config;
-
-#[cfg(not(target_env = "msvc"))]
-use tikv_jemallocator::Jemalloc;
 
 #[cfg(not(target_env = "msvc"))]
 #[global_allocator]
