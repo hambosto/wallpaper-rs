@@ -29,7 +29,7 @@ pub(super) struct Surface {
 
 impl Surface {
     fn new(layer_surface: LayerSurface, width: u32, height: u32) -> Self {
-        Self { layer_surface, width, height, pixels: vec![0u8; (width * height * 4) as usize], pool: None, transition: None }
+        Self { layer_surface, width, height, pixels: Vec::new(), pool: None, transition: None }
     }
 
     fn tick(&mut self) -> bool {
@@ -139,6 +139,7 @@ impl WaylandState {
         }
 
         for surface in &mut self.surfaces {
+            surface.pixels = vec![0u8; (surface.width * surface.height * 4) as usize];
             let mut target = vec![0u8; (surface.width * surface.height * 4) as usize];
             renderer.render(surface.width, surface.height, &mut target, &config.resize)?;
             surface.transition = Some(Transition::new(&config.transition, (surface.width, surface.height), target));
@@ -186,6 +187,7 @@ impl WaylandState {
             }
             surface.transition = None;
             surface.pool = None;
+            surface.pixels = Vec::new();
         }
     }
 
@@ -202,6 +204,7 @@ impl WaylandState {
         if !any_running {
             for surface in &mut self.surfaces {
                 surface.pool = None;
+                surface.pixels = Vec::new();
             }
         }
 
