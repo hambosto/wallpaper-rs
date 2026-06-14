@@ -1,4 +1,4 @@
-use crate::transition::keyframe::AnimationSequence;
+use crate::transition::animation::AnimationSequence;
 
 pub(crate) struct Fade {
     pub(crate) seq: AnimationSequence,

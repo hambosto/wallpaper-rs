@@ -1,5 +1,5 @@
+pub mod animation;
 pub mod effects;
-pub mod keyframe;
 
 use std::time::Instant;
 
