@@ -1,5 +1,3 @@
-A minimal wallpaper daemon for Wayland, written in Rust.
-
 ## What it does
 
 Sets a wallpaper image on all connected outputs using the layer shell protocol, with optional animated transitions between wallpapers.
@@ -61,14 +59,35 @@ Use with Home Manager:
       image.path = "~/wallpapers/wallpaper.png";
 
       transition = {
-        transition_type = "fade";
+        # transition_type: "none" | "simple" | "fade" | "grow" | "outer" | "wipe" | "wave"
+        transition_type = "simple";
         duration = 3.0;
         fps = 30;
+
+        fade.bezier = [0.54 0.0 0.34 0.99];
+
+        radial = {
+          step = 90;
+          bezier = [0.54 0.0 0.34 0.99];
+          invert_y = false;
+          pos = {
+            x = 0.5;
+            y = 0.5;
+          };
+        };
+
+        wave = {
+          step = 90;
+          bezier = [0.54 0.0 0.34 0.99];
+          angle = 45.0;
+          wave = [20.0 20.0];
+        };
       };
 
       resize = {
         strategy = "crop";
         crop_gravity = "center";
+        fill_color = [0 0 0 255];
         filter = "lanczos3";
       };
     };
@@ -187,11 +206,6 @@ Controls the visual effect when switching wallpapers. The entire section default
 transition_type = "fade"
 duration = 3.0
 fps = 30
-step = 90
-angle = 45.0
-bezier = [0.54, 0.0, 0.34, 0.99]
-wave = [20.0, 20.0]
-invert_y = false
 ```
 
 | Option | Type | Default | Description |
@@ -199,11 +213,6 @@ invert_y = false
 | `transition_type` | string | `simple` | Transition effect (see below) |
 | `duration` | float | `3.0` | Duration of the transition in seconds |
 | `fps` | integer | `30` | Target frames per second for the animation |
-| `step` | integer | `90` | Maximum pixel change per frame during convergence |
-| `angle` | float | `45.0` | Angle in degrees for `wipe` and `wave` effects |
-| `bezier` | array of 4 floats | `[0.54, 0.0, 0.34, 0.99]` | Cubic bezier control points `(x1, y1, x2, y2)` for easing |
-| `wave` | array of 2 floats | `[20.0, 20.0]` | Wave frequency (x) and amplitude (y) for `wave` effect |
-| `invert_y` | bool | `false` | Invert the Y axis for the `pos` coordinate system |
 
 **`transition_type` values:**
 
@@ -212,22 +221,50 @@ invert_y = false
 | `none` | Instant cut, no animation |
 | `simple` | Per-pixel convergence toward target |
 | `fade` | Alpha blend from old to new |
-| `grow` | Circle expands outward from `pos` |
-| `outer` | Circle contracts inward toward `pos` |
-| `wipe` | Linear sweep across the screen at `angle` |
-| `wave` | Sine-wave modulated sweep at `angle` |
+| `grow` | Circle expands outward from center |
+| `outer` | Circle contracts inward toward center |
+| `wipe` | Linear sweep across the screen |
+| `wave` | Sine-wave modulated sweep |
 
 ---
 
-### `[transition.pos]` (optional)
+### `[transition.fade]` (optional)
 
-Sets the origin point for `grow` and `outer` transitions. Can use pixels or percentages.
+Settings for the `fade` transition.
 
 ```toml
-[transition.pos]
+[transition.fade]
+bezier = [0.54, 0.0, 0.34, 0.99]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `bezier` | array of 4 floats | `[0.54, 0.0, 0.34, 0.99]` | Cubic bezier control points `(x1, y1, x2, y2)` for easing |
+
+---
+
+### `[transition.radial]` (optional)
+
+Settings for `grow` and `outer` transitions.
+
+```toml
+[transition.radial]
+step = 90
+bezier = [0.54, 0.0, 0.34, 0.99]
+invert_y = false
+
+[transition.radial.pos]
 x = 0.5
 y = 0.5
 ```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `step` | integer | `90` | Maximum pixel change per frame during convergence |
+| `bezier` | array of 4 floats | `[0.54, 0.0, 0.34, 0.99]` | Cubic bezier control points for easing |
+| `invert_y` | bool | `false` | Invert the Y axis for the `pos` coordinate system |
+
+**`[transition.radial.pos]`** — Sets the origin point for the radial effect. Can use pixels or percentages.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -236,7 +273,27 @@ y = 0.5
 
 - Values between 0.0 and 1.0 are treated as percentages (0.5 = center)
 - Values outside 0.0–1.0 are treated as pixel coordinates
-- Default `(0.5, 0.5)` = center of the screen
+
+---
+
+### `[transition.wave]` (optional)
+
+Settings for `wipe` and `wave` transitions.
+
+```toml
+[transition.wave]
+step = 90
+bezier = [0.54, 0.0, 0.34, 0.99]
+angle = 45.0
+wave = [20.0, 20.0]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `step` | integer | `90` | Maximum pixel change per frame during convergence |
+| `bezier` | array of 4 floats | `[0.54, 0.0, 0.34, 0.99]` | Cubic bezier control points for easing |
+| `angle` | float | `45.0` | Angle in degrees for the sweep direction |
+| `wave` | array of 2 floats | `[20.0, 20.0]` | Wave frequency (x) and amplitude (y), only used by `wave` effect |
 
 ---
 
@@ -304,15 +361,12 @@ path = "/home/user/wallpapers/mountains.jpg"
 transition_type = "wave"
 duration = 5.0
 fps = 60
-step = 120
-angle = 30.0
-bezier = [0.25, 0.1, 0.25, 1.0]
-wave = [15.0, 25.0]
-invert_y = false
 
-[transition.pos]
-x = 0.5
-y = 0.5
+[transition.wave]
+step = 120
+bezier = [0.25, 0.1, 0.25, 1.0]
+angle = 30.0
+wave = [15.0, 25.0]
 
 [resize]
 strategy = "crop"

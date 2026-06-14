@@ -1,0 +1,34 @@
+# wallpaper-rs configuration
+# All fields shown here are optional except [image] path.
+
+[image]
+path = "/absolute/path/to/wallpaper.png"
+
+[transition]
+transition_type = "simple"
+duration = 3.0
+fps = 30
+
+[transition.fade]
+bezier = [0.54, 0.0, 0.34, 0.99]
+
+[transition.radial]
+step = 90
+bezier = [0.54, 0.0, 0.34, 0.99]
+invert_y = false
+
+[transition.radial.pos]
+x = 0.5
+y = 0.5
+
+[transition.wave]
+step = 90
+bezier = [0.54, 0.0, 0.34, 0.99]
+angle = 45.0
+wave = [20.0, 20.0]
+
+[resize]
+strategy = "crop"
+crop_gravity = "center"
+fill_color = [0, 0, 0, 255]
+filter = "lanczos3"

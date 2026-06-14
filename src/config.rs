@@ -5,7 +5,7 @@ use fast_image_resize::FilterType;
 use serde::Deserialize;
 use smart_default::SmartDefault;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct Config {
     pub image: ImageConfig,
     #[serde(default)]
@@ -41,21 +41,48 @@ pub struct TransitionConfig {
     pub duration: f32,
     #[default = 30]
     pub fps: u16,
-    #[default = 90]
-    pub step: u8,
-    #[default = 45.0]
-    pub angle: f64,
-    #[default(_code = "Position::default()")]
-    pub pos: Position,
+    #[serde(default)]
+    pub fade: FadeConfig,
+    #[serde(default)]
+    pub radial: RadialConfig,
+    #[serde(default)]
+    pub wave: WaveConfig,
+}
+
+#[derive(SmartDefault, Deserialize, Debug)]
+#[serde(default)]
+pub struct FadeConfig {
     #[default(_code = "(0.54, 0.0, 0.34, 0.99)")]
     pub bezier: (f32, f32, f32, f32),
-    #[default(_code = "(20.0, 20.0)")]
-    pub wave: (f32, f32),
+}
+
+#[derive(SmartDefault, Deserialize, Debug)]
+#[serde(default)]
+pub struct RadialConfig {
+    #[default = 90]
+    pub step: u8,
+    #[default(_code = "(0.54, 0.0, 0.34, 0.99)")]
+    pub bezier: (f32, f32, f32, f32),
+    #[default(_code = "Position::default()")]
+    pub pos: Position,
     #[default = false]
     pub invert_y: bool,
 }
 
-#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(SmartDefault, Deserialize, Debug)]
+#[serde(default)]
+pub struct WaveConfig {
+    #[default = 90]
+    pub step: u8,
+    #[default(_code = "(0.54, 0.0, 0.34, 0.99)")]
+    pub bezier: (f32, f32, f32, f32),
+    #[default = 45.0]
+    pub angle: f64,
+    #[default(_code = "(20.0, 20.0)")]
+    pub wave: (f32, f32),
+}
+
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum ResizeStrategy {
     No,
@@ -64,7 +91,7 @@ pub enum ResizeStrategy {
     Stretch,
 }
 
-#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum CropGravity {
     TopLeft,
@@ -94,7 +121,7 @@ impl CropGravity {
     }
 }
 
-#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum Filter {
     Nearest,
@@ -107,16 +134,16 @@ pub enum Filter {
 impl From<Filter> for FilterType {
     fn from(f: Filter) -> Self {
         match f {
-            Filter::Nearest => FilterType::Box,
-            Filter::Bilinear => FilterType::Bilinear,
-            Filter::CatmullRom => FilterType::CatmullRom,
-            Filter::Mitchell => FilterType::Mitchell,
-            Filter::Lanczos3 => FilterType::Lanczos3,
+            Filter::Nearest => Self::Box,
+            Filter::Bilinear => Self::Bilinear,
+            Filter::CatmullRom => Self::CatmullRom,
+            Filter::Mitchell => Self::Mitchell,
+            Filter::Lanczos3 => Self::Lanczos3,
         }
     }
 }
 
-#[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum TransitionType {
     None,

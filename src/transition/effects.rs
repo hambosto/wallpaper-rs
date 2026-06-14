@@ -14,10 +14,10 @@ impl Effect {
         match config.transition_type {
             TransitionType::None => Self::None,
             TransitionType::Simple => Self::Cleanup { step: 2 },
-            TransitionType::Fade => Self::Fade(Fade::new(config.bezier, config.duration)),
-            TransitionType::Grow => Self::Radial(Radial::new(config.bezier, config.duration, config.step, config.pos, config.invert_y, dimensions, RadialMode::Grow)),
-            TransitionType::Outer => Self::Radial(Radial::new(config.bezier, config.duration, config.step, config.pos, config.invert_y, dimensions, RadialMode::Outer)),
-            TransitionType::Wipe | TransitionType::Wave => Self::Wave(Wave::new(config.bezier, config.duration, config.step, config.angle, config.wave, dimensions)),
+            TransitionType::Fade => Self::Fade(Fade::new(config.fade.bezier, config.duration)),
+            TransitionType::Grow => Self::Radial(Radial::new(config.radial.bezier, config.duration, config.radial.step, config.radial.pos, config.radial.invert_y, dimensions, RadialMode::Grow)),
+            TransitionType::Outer => Self::Radial(Radial::new(config.radial.bezier, config.duration, config.radial.step, config.radial.pos, config.radial.invert_y, dimensions, RadialMode::Outer)),
+            TransitionType::Wipe | TransitionType::Wave => Self::Wave(Wave::new(config.wave.bezier, config.duration, config.wave.step, config.wave.angle, config.wave.wave, dimensions)),
         }
     }
 
@@ -133,7 +133,7 @@ impl Radial {
 
         for line in 0..self.height {
             let dy = cy as f32 - line as f32;
-            let dx = if r * r > dy * dy { (r2 - dy * dy).sqrt() as usize } else { 0 };
+            let dx = if r * r > dy * dy { dy.mul_add(-dy, r2).sqrt() as usize } else { 0 };
 
             let inner = cx.saturating_sub(dx) * 4..self.width.min(cx + dx) * 4;
             let row = line * stride;
@@ -193,7 +193,7 @@ impl Wave {
         let r2 = circle_radius * circle_radius;
 
         Self {
-            seq: AnimationSequence::new(bezier, duration, ((sin.abs() * width + cos.abs() * height) * 2.0) as f32, (r2 * 2.0) as f32, 0.0),
+            seq: AnimationSequence::new(bezier, duration, (sin.abs().mul_add(width, cos.abs() * height) * 2.0) as f32, (r2 * 2.0) as f32, 0.0),
             center: (width / 2.0, height / 2.0),
             sin,
             cos,
@@ -218,8 +218,8 @@ impl Wave {
             let hy = (self.height - line) as f64 - self.center.1;
             let row = line * stride;
 
-            let x0 = ((r2 - (hy - self.scale_y * self.sin) * b - offset) / a + self.center.0 + self.scale_y * self.cos).clamp(0.0, self.width as f64);
-            let x1 = ((r2 - (hy + self.scale_y * self.sin) * b - offset) / a + self.center.0 - self.scale_y * self.cos).clamp(0.0, self.width as f64);
+            let x0 = self.scale_y.mul_add(self.cos, (self.scale_y.mul_add(-self.sin, hy).mul_add(-b, r2) - offset) / a + self.center.0).clamp(0.0, self.width as f64);
+            let x1 = self.scale_y.mul_add(-self.cos, (self.scale_y.mul_add(self.sin, hy).mul_add(-b, r2) - offset) / a + self.center.0).clamp(0.0, self.width as f64);
 
             let (primary_begin, primary_end) = if a.is_sign_negative() { (0, x0 as usize * 4) } else { (x0 as usize * 4, stride) };
             let primary = &mut canvas[row + primary_begin..row + primary_end];
@@ -238,7 +238,7 @@ impl Wave {
                 let rx = x - self.center.0;
                 let ry = y - self.center.1;
 
-                let lhs = ry * self.sin - rx * self.cos;
+                let lhs = ry.mul_add(self.sin, -(rx * self.cos));
                 let wave = ((rx * self.sin + ry * self.cos) / self.scale_x).sin() * self.scale_y;
 
                 if lhs <= wave - self.circle_radius + offset / self.circle_radius {

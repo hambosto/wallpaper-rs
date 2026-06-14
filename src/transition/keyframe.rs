@@ -25,7 +25,7 @@ impl AnimationSequence {
         }
         let t = ((self.time - self.start_time) / (self.end_time - self.start_time)) as f32;
         let eased = self.easing.apply(t);
-        self.start_val + (self.end_val - self.start_val) * eased
+        (self.end_val - self.start_val).mul_add(eased, self.start_val)
     }
 
     pub fn advance_to(&mut self, timestamp: f64) -> f64 {

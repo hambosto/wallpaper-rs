@@ -49,13 +49,13 @@ impl Surface {
     }
 
     fn commit(&mut self, shm: &Shm) -> Result<()> {
-        let needed = (self.width * 4 * self.height) as usize;
+        let needed = self.width.saturating_mul(4).saturating_mul(self.height) as usize;
         if self.pool.as_ref().is_none_or(|p| p.len() < needed) {
             self.pool = Some(SlotPool::new(needed, shm).context("failed to allocate shm pool for commit")?);
         }
         let pool = self.pool.as_mut().context("shm pool not initialized")?;
         let (buffer, canvas) = pool
-            .create_buffer(self.width.cast_signed(), self.height.cast_signed(), (self.width * 4).cast_signed(), Format::Xrgb8888)
+            .create_buffer(self.width.cast_signed(), self.height.cast_signed(), self.width.saturating_mul(4).cast_signed(), Format::Xrgb8888)
             .context("failed to create buffer")?;
         canvas.copy_from_slice(&self.pixels);
 
@@ -77,7 +77,7 @@ pub(super) struct WaylandState {
     pub(super) shm: Shm,
     pub(super) pending: Vec<Surface>,
     pub(super) surfaces: Vec<Surface>,
-    animation_token: Option<RegistrationToken>,
+    pub(super) animation_token: Option<RegistrationToken>,
 }
 
 impl WaylandState {
@@ -140,8 +140,10 @@ impl WaylandState {
         }
 
         for surface in &mut self.surfaces {
-            surface.pixels = vec![0u8; (surface.width * surface.height * 4) as usize];
-            let mut target = vec![0u8; (surface.width * surface.height * 4) as usize];
+            let pixels_len = surface.width.saturating_mul(surface.height).saturating_mul(4) as usize;
+            surface.pixels = vec![0u8; pixels_len];
+
+            let mut target = vec![0u8; pixels_len];
             renderer.render(surface.width, surface.height, &mut target, &config.resize)?;
             surface.transition = Some(Transition::new(&config.transition, (surface.width, surface.height), target));
         }
@@ -152,7 +154,8 @@ impl WaylandState {
     }
 
     fn start_animation(&mut self, config: &Config, loop_handle: &LoopHandle<'_, Self>) -> Result<()> {
-        let interval = Duration::from_millis((1000.0 / config.transition.fps as f64) as u64);
+        let interval_ms = 1000.0 / f64::from(config.transition.fps);
+        let interval = Duration::from_millis(interval_ms as u64);
 
         tracing::info!(fps = config.transition.fps, interval_ms = interval.as_millis(), "animation timer started");
 
@@ -192,22 +195,22 @@ impl WaylandState {
     }
 
     fn tick_and_commit(&mut self) -> Result<bool> {
-        let mut any_running = false;
+        let mut running = false;
 
         for surface in &mut self.surfaces {
             if surface.tick() {
-                any_running = true;
+                running = true;
             }
             surface.commit(&self.shm)?;
         }
 
-        if !any_running {
+        if !running {
             for surface in &mut self.surfaces {
                 surface.pool = None;
                 surface.pixels = Vec::new();
             }
         }
 
-        Ok(any_running)
+        Ok(running)
     }
 }

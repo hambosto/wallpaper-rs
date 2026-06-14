@@ -35,9 +35,8 @@ impl Transition {
     }
 
     pub fn frame(&mut self, canvas: &mut [u8]) -> bool {
-        let effect = match self.effect.as_mut() {
-            Some(e) => e,
-            None => return true,
+        let Some(effect) = self.effect.as_mut() else {
+            return true;
         };
 
         let elapsed = self.start.elapsed().as_secs_f64();

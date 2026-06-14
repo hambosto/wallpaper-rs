@@ -96,9 +96,9 @@ fn resize_crop(src: &RgbaImage, width: u32, height: u32, gravity: CropGravity, f
 fn resize_fit(src: &RgbaImage, width: u32, height: u32, fill_color: [u8; 4], filter: FilterType) -> Result<RgbaImage> {
     let (src_w, src_h) = src.dimensions();
 
-    let scale = (width as f32 / src_w as f32).min(height as f32 / src_h as f32);
-    let trg_w = ((src_w as f32 * scale) as u32).max(1);
-    let trg_h = ((src_h as f32 * scale) as u32).max(1);
+    let scale = (f64::from(width) / f64::from(src_w)).min(f64::from(height) / f64::from(src_h));
+    let trg_w = ((f64::from(src_w) * scale) as u32).max(1);
+    let trg_h = ((f64::from(src_h) * scale) as u32).max(1);
 
     let options = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(filter));
     let resized = fast_resize(src, trg_w, trg_h, &options)?;
