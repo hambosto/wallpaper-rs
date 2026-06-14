@@ -160,7 +160,7 @@ impl Position {
 }
 
 impl Config {
-    pub fn new(path: &Path) -> Result<Self> {
+    pub fn load_from_file(path: &Path) -> Result<Self> {
         let read_config = std::fs::read_to_string(path).context("cannot read from config file")?;
         let parse_config: Self = toml::from_str(&read_config).context("cannot parse config file")?;
 

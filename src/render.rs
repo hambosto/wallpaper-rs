@@ -15,13 +15,20 @@ pub struct Render {
 
 impl Render {
     pub fn new(path: &Path) -> Result<Self> {
-        let file = File::open(path).with_context(|| format!("cannot read file: {}", path.display()))?;
-        let reader = ImageReader::new(BufReader::new(file)).with_guessed_format().context("cannot detect image format")?;
+        if !path.exists() {
+            anyhow::bail!("path does not exist: {}", path.display());
+        }
+        if !path.is_file() {
+            anyhow::bail!("path is not a file: {}", path.display());
+        }
 
-        let mut decoder = reader.into_decoder().context("cannot create image decoder")?;
-        let orientation = decoder.orientation().context("cannot read image orientation")?;
+        let file = File::open(path).context("failed to open image")?;
+        let reader = ImageReader::new(BufReader::new(file)).with_guessed_format().context("failed to detect image format")?;
 
-        let mut image = DynamicImage::from_decoder(decoder).context("cannot decode image")?;
+        let mut decoder = reader.into_decoder().context("failed to create decoder")?;
+        let orientation = decoder.orientation().context("failed to read orientation")?;
+
+        let mut image = DynamicImage::from_decoder(decoder).context("failed to decode image")?;
         image.apply_orientation(orientation);
 
         Ok(Self { rgba: image.into_rgba8() })

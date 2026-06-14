@@ -29,5 +29,5 @@ fn load_config() -> Result<Config> {
     let xdg_dirs = BaseDirectories::with_prefix("wallpaper-rs");
     let config_file = xdg_dirs.find_config_file("config.toml").context("no configuration found at ~/.config/wallpaper-rs/config.toml")?;
 
-    Config::new(&config_file)
+    Config::load_from_file(&config_file)
 }
