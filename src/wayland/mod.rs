@@ -25,7 +25,7 @@ pub fn run(config: &Config) -> Result<()> {
     let mut event_loop = EventLoop::try_new().context("failed to create event loop")?;
     WaylandSource::new(connection, event_queue).insert(event_loop.handle()).context("failed to insert Wayland source")?;
 
-    state.apply_wallpaper(config, &event_loop.handle(), &queue_handle)?;
+    state.apply_wallpaper(config, &event_loop.handle())?;
 
     event_loop.run(None, &mut state, |_| {}).context("event loop error")
 }

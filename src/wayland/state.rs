@@ -9,7 +9,7 @@ use smithay_client_toolkit::registry::RegistryState;
 use smithay_client_toolkit::shell::WaylandSurface;
 use smithay_client_toolkit::shell::wlr_layer::{Anchor, Layer, LayerShell, LayerSurface};
 use smithay_client_toolkit::shm::Shm;
-use smithay_client_toolkit::shm::raw::RawPool;
+use smithay_client_toolkit::shm::slot::SlotPool;
 use wayland_client::QueueHandle;
 use wayland_client::globals::GlobalList;
 use wayland_client::protocol::wl_shm::Format;
@@ -23,7 +23,7 @@ pub(super) struct Surface {
     pub(super) width: u32,
     pub(super) height: u32,
     pub(super) pixels: Vec<u8>,
-    pub(super) pool: Option<RawPool>,
+    pub(super) pool: Option<SlotPool>,
     pub(super) transition: Option<Transition>,
 }
 
@@ -48,18 +48,19 @@ impl Surface {
         !finished
     }
 
-    fn commit(&mut self, shm: &Shm, queue_handle: &QueueHandle<WaylandState>) -> Result<()> {
+    fn commit(&mut self, shm: &Shm) -> Result<()> {
         let needed = (self.width * 4 * self.height) as usize;
         if self.pool.as_ref().is_none_or(|p| p.len() < needed) {
-            self.pool = Some(RawPool::new(needed, shm).context("failed to allocate shm pool for commit")?);
+            self.pool = Some(SlotPool::new(needed, shm).context("failed to allocate shm pool for commit")?);
         }
         let pool = self.pool.as_mut().context("shm pool not initialized")?;
-        pool.mmap().copy_from_slice(&self.pixels);
+        let (buffer, canvas) = pool
+            .create_buffer(self.width.cast_signed(), self.height.cast_signed(), (self.width * 4).cast_signed(), Format::Xrgb8888)
+            .context("failed to create buffer")?;
+        canvas.copy_from_slice(&self.pixels);
 
-        let buffer = pool.create_buffer(0, self.width.cast_signed(), self.height.cast_signed(), (self.width * 4).cast_signed(), Format::Xrgb8888, (), queue_handle);
         let wl_surface = self.layer_surface.wl_surface();
-
-        wl_surface.attach(Some(&buffer), 0, 0);
+        buffer.attach_to(wl_surface).context("failed to attach buffer")?;
         wl_surface.damage_buffer(0, 0, self.width.cast_signed(), self.height.cast_signed());
 
         self.layer_surface.commit();
@@ -121,7 +122,7 @@ impl WaylandState {
         tracing::info!(count = self.pending.len(), "surfaces created");
     }
 
-    pub(super) fn apply_wallpaper(&mut self, config: &Config, loop_handle: &LoopHandle<'_, Self>, queue_handle: &QueueHandle<Self>) -> Result<()> {
+    pub(super) fn apply_wallpaper(&mut self, config: &Config, loop_handle: &LoopHandle<'_, Self>) -> Result<()> {
         if self.pending.is_empty() && self.surfaces.is_empty() {
             anyhow::bail!("no surfaces were configured by the compositor");
         }
@@ -145,19 +146,18 @@ impl WaylandState {
             surface.transition = Some(Transition::new(&config.transition, (surface.width, surface.height), target));
         }
 
-        self.start_animation(config, loop_handle, queue_handle)?;
+        self.start_animation(config, loop_handle)?;
 
         Ok(())
     }
 
-    fn start_animation(&mut self, config: &Config, loop_handle: &LoopHandle<'_, Self>, queue_handle: &QueueHandle<Self>) -> Result<()> {
+    fn start_animation(&mut self, config: &Config, loop_handle: &LoopHandle<'_, Self>) -> Result<()> {
         let interval = Duration::from_millis((1000.0 / config.transition.fps as f64) as u64);
-        let queue_handle = queue_handle.clone();
 
         tracing::info!(fps = config.transition.fps, interval_ms = interval.as_millis(), "animation timer started");
 
         let token = loop_handle
-            .insert_source(Timer::from_duration(interval), move |_, _, state: &mut Self| match state.tick_and_commit(&queue_handle) {
+            .insert_source(Timer::from_duration(interval), move |_, _, state: &mut Self| match state.tick_and_commit() {
                 Ok(true) => TimeoutAction::ToDuration(interval),
                 Ok(false) => {
                     state.animation_token = None;
@@ -191,14 +191,14 @@ impl WaylandState {
         }
     }
 
-    fn tick_and_commit(&mut self, queue_handle: &QueueHandle<Self>) -> Result<bool> {
+    fn tick_and_commit(&mut self) -> Result<bool> {
         let mut any_running = false;
 
         for surface in &mut self.surfaces {
             if surface.tick() {
                 any_running = true;
             }
-            surface.commit(&self.shm, queue_handle)?;
+            surface.commit(&self.shm)?;
         }
 
         if !any_running {
