@@ -2,11 +2,11 @@ mod fade;
 mod radial;
 mod wave;
 
-use crate::config::{TransitionConfig, TransitionType};
-
 pub(crate) use fade::Fade;
 pub(crate) use radial::{Radial, RadialMode};
 pub(crate) use wave::Wave;
+
+use crate::config::{TransitionConfig, TransitionType};
 
 pub(crate) enum Effect {
     None,
