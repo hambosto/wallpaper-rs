@@ -218,8 +218,14 @@ impl Wave {
             let hy = (self.height - line) as f64 - self.center.1;
             let row = line * stride;
 
-            let x0 = self.scale_y.mul_add(self.cos, (self.scale_y.mul_add(-self.sin, hy).mul_add(-b, r2) - offset) / a + self.center.0).clamp(0.0, self.width as f64);
-            let x1 = self.scale_y.mul_add(-self.cos, (self.scale_y.mul_add(self.sin, hy).mul_add(-b, r2) - offset) / a + self.center.0).clamp(0.0, self.width as f64);
+            let x0 = self
+                .scale_y
+                .mul_add(self.cos, (self.scale_y.mul_add(-self.sin, hy).mul_add(-b, r2) - offset) / a + self.center.0)
+                .clamp(0.0, self.width as f64);
+            let x1 = self
+                .scale_y
+                .mul_add(-self.cos, (self.scale_y.mul_add(self.sin, hy).mul_add(-b, r2) - offset) / a + self.center.0)
+                .clamp(0.0, self.width as f64);
 
             let (primary_begin, primary_end) = if a.is_sign_negative() { (0, x0 as usize * 4) } else { (x0 as usize * 4, stride) };
             let primary = &mut canvas[row + primary_begin..row + primary_end];
