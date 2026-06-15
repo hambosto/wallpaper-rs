@@ -140,10 +140,10 @@ impl WaylandState {
         }
 
         for surface in &mut self.surfaces {
-            let pixels_len = surface.width.saturating_mul(surface.height).saturating_mul(4) as usize;
-            surface.pixels = vec![0u8; pixels_len];
+            let buffer_size = surface.width.saturating_mul(surface.height).saturating_mul(4) as usize;
+            surface.pixels = vec![0u8; buffer_size];
 
-            let mut target = vec![0u8; pixels_len];
+            let mut target = vec![0u8; buffer_size];
             renderer.render(surface.width, surface.height, &mut target, &config.resize)?;
             surface.transition = Some(Transition::new(&config.transition, (surface.width, surface.height), target));
         }
