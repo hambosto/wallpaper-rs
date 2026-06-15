@@ -1,6 +1,6 @@
 use animato_core::Easing;
 
-pub struct AnimationSequence {
+pub(crate) struct AnimationSequence {
     easing: Easing,
     start_val: f32,
     end_val: f32,
@@ -10,13 +10,13 @@ pub struct AnimationSequence {
 }
 
 impl AnimationSequence {
-    pub fn new(bezier: (f32, f32, f32, f32), duration: f32, start_val: f32, end_val: f32, start_time: f64) -> Self {
+    pub(crate) fn new(bezier: (f32, f32, f32, f32), duration: f32, start_val: f32, end_val: f32, start_time: f64) -> Self {
         let easing = Easing::CubicBezier(bezier.0, bezier.1, bezier.2, bezier.3);
         let end_time = start_time + duration as f64;
         Self { easing, start_val, end_val, start_time, end_time, time: 0.0 }
     }
 
-    pub fn now(&self) -> f32 {
+    pub(crate) fn now(&self) -> f32 {
         if self.time <= self.start_time {
             return self.start_val;
         }
@@ -28,12 +28,12 @@ impl AnimationSequence {
         (self.end_val - self.start_val).mul_add(eased, self.start_val)
     }
 
-    pub fn advance_to(&mut self, timestamp: f64) -> f64 {
+    pub(crate) fn advance_to(&mut self, timestamp: f64) -> f64 {
         self.time = timestamp.clamp(self.start_time, self.end_time);
         timestamp - self.time
     }
 
-    pub fn finished(&self) -> bool {
+    pub(crate) fn finished(&self) -> bool {
         self.time >= self.end_time
     }
 }

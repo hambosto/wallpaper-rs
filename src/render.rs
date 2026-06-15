@@ -9,12 +9,12 @@ use image::{DynamicImage, GenericImageView, ImageDecoder, ImageReader, Rgba, Rgb
 
 use crate::config::{CropGravity, ResizeConfig, ResizeStrategy};
 
-pub struct Render {
+pub(crate) struct Render {
     rgba: RgbaImage,
 }
 
 impl Render {
-    pub fn new(path: &Path) -> Result<Self> {
+    pub(crate) fn new(path: &Path) -> Result<Self> {
         if !path.exists() {
             anyhow::bail!("path does not exist: {}", path.display());
         }
@@ -34,7 +34,7 @@ impl Render {
         Ok(Self { rgba: image.into_rgba8() })
     }
 
-    pub fn render(&self, width: u32, height: u32, dst: &mut [u8], resize: &ResizeConfig) -> Result<()> {
+    pub(crate) fn render(&self, width: u32, height: u32, dst: &mut [u8], resize: &ResizeConfig) -> Result<()> {
         let resized = apply_resize(&self.rgba, width, height, resize)?;
         garb::bytes::rgba_to_bgra(resized.as_raw(), dst).context("pixel format conversion failed")
     }

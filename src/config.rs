@@ -6,85 +6,85 @@ use serde::Deserialize;
 use smart_default::SmartDefault;
 
 #[derive(Deserialize)]
-pub struct Config {
-    pub image: ImageConfig,
+pub(crate) struct Config {
+    pub(crate) image: ImageConfig,
     #[serde(default)]
-    pub transition: TransitionConfig,
+    pub(crate) transition: TransitionConfig,
     #[serde(default)]
-    pub resize: ResizeConfig,
+    pub(crate) resize: ResizeConfig,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct ImageConfig {
-    pub path: PathBuf,
+pub(crate) struct ImageConfig {
+    pub(crate) path: PathBuf,
 }
 
 #[derive(SmartDefault, Deserialize, Debug)]
 #[serde(default)]
-pub struct ResizeConfig {
+pub(crate) struct ResizeConfig {
     #[default(_code = "ResizeStrategy::Crop")]
-    pub strategy: ResizeStrategy,
+    pub(crate) strategy: ResizeStrategy,
     #[default(_code = "CropGravity::Center")]
-    pub crop_gravity: CropGravity,
+    pub(crate) crop_gravity: CropGravity,
     #[default(_code = "[0x00, 0x00, 0x00, 0xFF]")]
-    pub fill_color: [u8; 4],
+    pub(crate) fill_color: [u8; 4],
     #[default(_code = "Filter::Lanczos3")]
-    pub filter: Filter,
+    pub(crate) filter: Filter,
 }
 
 #[derive(SmartDefault, Deserialize, Debug)]
 #[serde(default)]
-pub struct TransitionConfig {
+pub(crate) struct TransitionConfig {
     #[default(_code = "TransitionType::Simple")]
-    pub transition_type: TransitionType,
+    pub(crate) transition_type: TransitionType,
     #[default = 3.0]
-    pub duration: f32,
+    pub(crate) duration: f32,
     #[default = 30]
-    pub fps: u16,
+    pub(crate) fps: u16,
     #[serde(default)]
-    pub fade: FadeConfig,
+    pub(crate) fade: FadeConfig,
     #[serde(default)]
-    pub radial: RadialConfig,
+    pub(crate) radial: RadialConfig,
     #[serde(default)]
-    pub wave: WaveConfig,
+    pub(crate) wave: WaveConfig,
 }
 
 #[derive(SmartDefault, Deserialize, Debug)]
 #[serde(default)]
-pub struct FadeConfig {
+pub(crate) struct FadeConfig {
     #[default(_code = "(0.54, 0.0, 0.34, 0.99)")]
-    pub bezier: (f32, f32, f32, f32),
+    pub(crate) bezier: (f32, f32, f32, f32),
 }
 
 #[derive(SmartDefault, Deserialize, Debug)]
 #[serde(default)]
-pub struct RadialConfig {
+pub(crate) struct RadialConfig {
     #[default = 90]
-    pub step: u8,
+    pub(crate) step: u8,
     #[default(_code = "(0.54, 0.0, 0.34, 0.99)")]
-    pub bezier: (f32, f32, f32, f32),
+    pub(crate) bezier: (f32, f32, f32, f32),
     #[default(_code = "Position::default()")]
-    pub pos: Position,
+    pub(crate) pos: Position,
     #[default = false]
-    pub invert_y: bool,
+    pub(crate) invert_y: bool,
 }
 
 #[derive(SmartDefault, Deserialize, Debug)]
 #[serde(default)]
-pub struct WaveConfig {
+pub(crate) struct WaveConfig {
     #[default = 90]
-    pub step: u8,
+    pub(crate) step: u8,
     #[default(_code = "(0.54, 0.0, 0.34, 0.99)")]
-    pub bezier: (f32, f32, f32, f32),
+    pub(crate) bezier: (f32, f32, f32, f32),
     #[default = 45.0]
-    pub angle: f64,
+    pub(crate) angle: f64,
     #[default(_code = "(20.0, 20.0)")]
-    pub wave: (f32, f32),
+    pub(crate) wave: (f32, f32),
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
-pub enum ResizeStrategy {
+pub(crate) enum ResizeStrategy {
     No,
     Crop,
     Fit,
@@ -93,7 +93,7 @@ pub enum ResizeStrategy {
 
 #[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
-pub enum CropGravity {
+pub(crate) enum CropGravity {
     TopLeft,
     Top,
     TopRight,
@@ -106,7 +106,7 @@ pub enum CropGravity {
 }
 
 impl CropGravity {
-    pub fn as_centering(self) -> (f64, f64) {
+    pub(crate) fn as_centering(self) -> (f64, f64) {
         match self {
             Self::TopLeft => (0.0, 0.0),
             Self::Top => (0.5, 0.0),
@@ -123,7 +123,7 @@ impl CropGravity {
 
 #[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
-pub enum Filter {
+pub(crate) enum Filter {
     Nearest,
     Bilinear,
     CatmullRom,
@@ -145,7 +145,7 @@ impl From<Filter> for FilterType {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
-pub enum TransitionType {
+pub(crate) enum TransitionType {
     None,
     Simple,
     Fade,
@@ -157,21 +157,21 @@ pub enum TransitionType {
 
 #[derive(Deserialize, Debug, Clone, Copy)]
 #[serde(untagged)]
-pub enum Coord {
+pub(crate) enum Coord {
     Pixel(f32),
     Percent(f32),
 }
 
 #[derive(SmartDefault, Deserialize, Debug, Clone, Copy)]
-pub struct Position {
+pub(crate) struct Position {
     #[default(_code = "Coord::Percent(0.5)")]
-    pub x: Coord,
+    pub(crate) x: Coord,
     #[default(_code = "Coord::Percent(0.5)")]
-    pub y: Coord,
+    pub(crate) y: Coord,
 }
 
 impl Position {
-    pub fn to_pixel(self, dim: (u32, u32), invert_y: bool) -> (f32, f32) {
+    pub(crate) fn to_pixel(self, dim: (u32, u32), invert_y: bool) -> (f32, f32) {
         let x = match self.x {
             Coord::Pixel(v) => v,
             Coord::Percent(v) => v * dim.0 as f32,
@@ -187,7 +187,7 @@ impl Position {
 }
 
 impl Config {
-    pub fn load_from_file(path: &Path) -> Result<Self> {
+    pub(crate) fn load_from_file(path: &Path) -> Result<Self> {
         let read_config = std::fs::read_to_string(path).context("cannot read from config file")?;
         let parse_config: Self = toml::from_str(&read_config).context("cannot parse config file")?;
 

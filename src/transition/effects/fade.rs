@@ -1,7 +1,7 @@
 use crate::transition::animation::AnimationSequence;
 
 pub(crate) struct Fade {
-    pub(crate) seq: AnimationSequence,
+    seq: AnimationSequence,
     pub(crate) alpha: u16,
 }
 

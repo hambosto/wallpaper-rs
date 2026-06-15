@@ -19,12 +19,12 @@ use crate::render::Render;
 use crate::transition::Transition;
 
 pub(super) struct Surface {
-    pub(super) layer_surface: LayerSurface,
-    pub(super) width: u32,
-    pub(super) height: u32,
-    pub(super) pixels: Vec<u8>,
-    pub(super) pool: Option<SlotPool>,
-    pub(super) transition: Option<Transition>,
+    layer_surface: LayerSurface,
+    width: u32,
+    height: u32,
+    pixels: Vec<u8>,
+    pool: Option<SlotPool>,
+    transition: Option<Transition>,
 }
 
 impl Surface {
@@ -72,12 +72,12 @@ impl Surface {
 pub(super) struct WaylandState {
     pub(super) registry_state: RegistryState,
     pub(super) output_state: OutputState,
-    pub(super) compositor: CompositorState,
-    pub(super) layer_shell: LayerShell,
+    compositor: CompositorState,
+    layer_shell: LayerShell,
     pub(super) shm: Shm,
-    pub(super) pending: Vec<Surface>,
-    pub(super) surfaces: Vec<Surface>,
-    pub(super) animation_token: Option<RegistrationToken>,
+    pending: Vec<Surface>,
+    surfaces: Vec<Surface>,
+    animation_token: Option<RegistrationToken>,
 }
 
 impl WaylandState {

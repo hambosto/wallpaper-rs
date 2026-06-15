@@ -2,9 +2,9 @@ mod fade;
 mod radial;
 mod wave;
 
-pub(crate) use fade::Fade;
-pub(crate) use radial::{Radial, RadialMode};
-pub(crate) use wave::Wave;
+use fade::Fade;
+use radial::{Radial, RadialMode};
+use wave::Wave;
 
 use crate::config::{TransitionConfig, TransitionType};
 
@@ -17,7 +17,7 @@ pub(crate) enum Effect {
 }
 
 impl Effect {
-    pub fn new(config: &TransitionConfig, dimensions: (u32, u32)) -> Self {
+    pub(crate) fn new(config: &TransitionConfig, dimensions: (u32, u32)) -> Self {
         match config.transition_type {
             TransitionType::None => Self::None,
             TransitionType::Simple => Self::Cleanup { step: 2 },
@@ -28,7 +28,7 @@ impl Effect {
         }
     }
 
-    pub fn execute(&mut self, canvas: &mut [u8], target: &[u8], elapsed: f64) -> bool {
+    pub(crate) fn execute(&mut self, canvas: &mut [u8], target: &[u8], elapsed: f64) -> bool {
         match self {
             Self::None => {
                 canvas.copy_from_slice(target);

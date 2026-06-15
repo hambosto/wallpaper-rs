@@ -9,7 +9,7 @@ use wayland_client::Connection;
 
 use crate::config::Config;
 
-pub fn run(config: &Config) -> Result<()> {
+pub(crate) fn run(config: &Config) -> Result<()> {
     let connection = Connection::connect_to_env().context("failed to connect to wayland display")?;
     let (global_list, mut event_queue) = wayland_client::globals::registry_queue_init(&connection).context("failed to initialise globals registry")?;
     let mut state = WaylandState::bind(&global_list, &event_queue.handle())?;

@@ -1,5 +1,5 @@
-pub mod animation;
-pub mod effects;
+pub(crate) mod animation;
+mod effects;
 
 use std::time::Instant;
 
@@ -7,7 +7,7 @@ use effects::Effect;
 
 use crate::config::TransitionConfig;
 
-pub struct Transition {
+pub(crate) struct Transition {
     effect: Option<Effect>,
     target: Vec<u8>,
     start: Instant,
@@ -16,7 +16,7 @@ pub struct Transition {
 }
 
 impl Transition {
-    pub fn new(config: &TransitionConfig, dimensions: (u32, u32), target: Vec<u8>) -> Self {
+    pub(crate) fn new(config: &TransitionConfig, dimensions: (u32, u32), target: Vec<u8>) -> Self {
         tracing::info!(
             transition_type = ?config.transition_type,
             duration = config.duration,
@@ -26,15 +26,15 @@ impl Transition {
         Self { effect: Some(Effect::new(config, dimensions)), target, start: Instant::now(), width: dimensions.0, height: dimensions.1 }
     }
 
-    pub fn is_done(&self) -> bool {
+    pub(crate) fn is_done(&self) -> bool {
         self.effect.is_none()
     }
 
-    pub fn dimensions(&self) -> (u32, u32) {
+    pub(crate) fn dimensions(&self) -> (u32, u32) {
         (self.width, self.height)
     }
 
-    pub fn frame(&mut self, canvas: &mut [u8]) -> bool {
+    pub(crate) fn frame(&mut self, canvas: &mut [u8]) -> bool {
         let Some(effect) = self.effect.as_mut() else {
             return true;
         };
