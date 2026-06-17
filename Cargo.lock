@@ -28,9 +28,9 @@ dependencies = [
 
 [[package]]
 name = "animato-core"
-version = "1.5.1"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77b42cc06302080df212cfc2dc2fb722b8b3b13c92f365df9605e3938450d7b7"
+checksum = "8c056e87b83becb7b2bd982e86dca73cd1a91d31b43c118cc99b1df4cdeafb84"
 dependencies = [
  "libm",
 ]
