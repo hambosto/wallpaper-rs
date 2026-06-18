@@ -47,7 +47,7 @@
 
       homeManagerModules.default = { lib, pkgs, ... }: {
         imports = [ ./nix/home-module.nix ];
-        programs.wallpaper-rs.package =
+        services.wallpaper-rs.package =
           lib.mkDefault
             self.packages.${pkgs.stdenv.hostPlatform.system}.default;
       };
