@@ -39,7 +39,7 @@
 
       devShells = forEachSystem (
         { pkgs, system }: {
-          default = pkgs.callPackage ./nix/devshell.nix {
+          default = pkgs.callPackage ./nix/shell.nix {
             wallpaper-rs = self.packages.${system}.default;
           };
         }
