@@ -1,4 +1,3 @@
-{ self }:
 {
   config,
   lib,
@@ -13,9 +12,12 @@ let
 in
 {
   options.services.wallpaper-rs = {
-    enable = lib.mkEnableOption "A minimal wallpaper daemon for Wayland, written in Rust.";
+    enable = lib.mkEnableOption "Whether to enable wallpaper-rs, a minimal wallpaper daemon for Wayland";
 
-    package = lib.mkPackageOption self.packages.${pkgs.stdenv.system} "wallpaper-rs" { };
+    package = lib.mkOption {
+      type = lib.types.nullOr lib.types.package;
+      description = "The wallpaper-rs package to use.";
+    };
 
     settings = lib.mkOption {
       inherit (tomlFormat) type;
@@ -74,22 +76,20 @@ in
     xdg.configFile."wallpaper-rs/config.toml".source = configFile;
 
     systemd.user.services.wallpaper-rs = {
-      Unit = {
-        Description = "A minimal wallpaper daemon for Wayland, written in Rust.";
-        After = [ config.wayland.systemd.target ];
-        PartOf = [ config.wayland.systemd.target ];
-        X-Restart-Triggers = [ configFile ];
-      };
+      Install.WantedBy = [ config.wayland.systemd.target ];
 
       Service = {
+        ConditionEnvironment = "WAYLAND_DISPLAY";
         ExecStart = lib.getExe cfg.package;
         Restart = "on-failure";
-        RestartSec = 10;
-        ConditionEnvironment = "WAYLAND_DISPLAY";
       };
 
-      Install = {
-        WantedBy = [ config.wayland.systemd.target ];
+      Unit = {
+        After = [ config.wayland.systemd.target ];
+        Description = "A minimal wallpaper daemon for Wayland, written in Rust.";
+        Documentation = "https://github.com/hambosto/sweetbyte";
+        PartOf = [ config.wayland.systemd.target ];
+        X-Restart-Triggers = [ configFile ];
       };
     };
   };

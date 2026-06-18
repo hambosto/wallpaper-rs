@@ -50,7 +50,6 @@ rustPlatform.buildRustPackage (final: {
     homepage = "https://github.com/hambosto/wallpaper-rs";
     license = lib.licenses.mit;
     mainProgram = "wallpaper-rs";
-    maintainers = [ ];
     platforms = lib.platforms.linux;
   };
 })

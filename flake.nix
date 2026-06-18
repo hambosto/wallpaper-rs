@@ -3,37 +3,53 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    systems.url = "github:nix-systems/default-linux";
   };
 
   outputs =
     {
       self,
       nixpkgs,
-      systems,
     }:
     let
-      inherit (nixpkgs) lib;
-      eachSystem = lib.genAttrs (import systems);
-      pkgsFor = system: nixpkgs.legacyPackages.${system};
+      inherit (nixpkgs.lib) genAttrs;
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+      forEachSystem =
+        perSystem:
+        genAttrs systems (
+          system:
+          let
+            pkgs = nixpkgs.legacyPackages.${system};
+          in
+          perSystem { inherit pkgs system; }
+        );
     in
     {
-      formatter = eachSystem (system: (pkgsFor system).alejandra);
+      overlays.default = final: prev: {
+        wallpaper-rs = final.callPackage ./nix/package.nix { };
+      };
 
-      devShells = eachSystem (system: {
-        default = (pkgsFor system).callPackage ./nix/shell.nix {
-          inherit (self.packages.${system}) wallpaper-rs;
-        };
-      });
+      packages = forEachSystem (
+        { pkgs, ... }: {
+          default = pkgs.callPackage ./nix/package.nix { };
+        }
+      );
 
-      packages = eachSystem (system: {
-        wallpaper-rs = (pkgsFor system).callPackage ./nix/package.nix { inherit self; };
-        default = self.packages.${system}.wallpaper-rs;
-      });
+      devShells = forEachSystem (
+        { pkgs, system }: {
+          default = pkgs.callPackage ./nix/devshell.nix {
+            wallpaper-rs = self.packages.${system}.default;
+          };
+        }
+      );
 
-      homeManagerModules = {
-        wallpaper-rs = import ./nix/module.nix { inherit self; };
-        default = self.homeManagerModules.wallpaper-rs;
+      homeManagerModules.default = { lib, pkgs, ... }: {
+        imports = [ ./nix/home-module.nix ];
+        programs.wallpaper-rs.package =
+          lib.mkDefault
+            self.packages.${pkgs.stdenv.hostPlatform.system}.default;
       };
     };
 }
