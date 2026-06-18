@@ -28,12 +28,12 @@
     in
     {
       overlays.default = final: prev: {
-        wallpaper-rs = final.callPackage ./nix/package.nix { };
+        wallpaper-rs = final.callPackage ./nix/package.nix { inherit self; };
       };
 
       packages = forEachSystem (
         { pkgs, ... }: {
-          default = pkgs.callPackage ./nix/package.nix { };
+          default = pkgs.callPackage ./nix/package.nix { inherit self; };
         }
       );
 
