@@ -13,7 +13,7 @@ jobs:
     if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       - name: Install Nix package manager
         uses: DeterminateSystems/nix-installer-action@main
