@@ -54,7 +54,7 @@ in
         After = [ config.wayland.systemd.target ];
         ConditionEnvironment = "WAYLAND_DISPLAY";
         Description = "A minimal wallpaper daemon for Wayland, written in Rust.";
-        Documentation = "https://github.com/hambosto/sweetbyte";
+        Documentation = "https://github.com/hambosto/wallpaper-rs";
         PartOf = [ config.wayland.systemd.target ];
         X-Restart-Triggers = lib.mkIf (cfg.settings != { }) [
           "${config.xdg.configFile."wallpaper-rs/config.toml".source}"
