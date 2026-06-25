@@ -38,7 +38,7 @@ in
 
     xdg.configFile = {
       "wallpaper-rs/config.toml" = lib.mkIf (cfg.settings != { }) {
-        source = tomlFormat.generate "config.toml" cfg.settings;
+        source = tomlFormat.generate "wallpaper-rs-config.toml" cfg.settings;
       };
     };
 
