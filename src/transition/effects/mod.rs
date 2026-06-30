@@ -37,6 +37,7 @@ impl Effect {
             Self::Cleanup { step } => {
                 let step = *step;
                 let mut done = true;
+                #[expect(clippy::chunks_exact_to_as_chunks, reason = "as_chunks is nightly-only")]
                 for (old, new) in canvas.chunks_exact_mut(4).zip(target.chunks_exact(4)) {
                     for (o, &n) in old.iter_mut().zip(new) {
                         let delta = step.min(o.abs_diff(n));
