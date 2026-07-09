@@ -10,7 +10,7 @@ homepage = "https://github.com/hambosto/wallpaper-rs"
 repository = "https://github.com/hambosto/wallpaper-rs"
 
 [dependencies]
-animato-core = "1.5.1"
+animato-core = "1.7.0"
 anyhow = "1.0.102"
 fast_image_resize = "6.0.0"
 garb = "0.2.8"
