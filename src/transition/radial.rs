@@ -2,7 +2,7 @@ use super::animation::AnimationSequence;
 use crate::config::Position;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum RadialMode {
+pub(super) enum RadialMode {
     Grow,
     Outer,
 }
@@ -11,7 +11,7 @@ pub(crate) struct Radial {
     seq: AnimationSequence,
     center: (usize, usize),
     radius: f32,
-    pub(crate) step: u8,
+    pub(super) step: u8,
     width: usize,
     height: usize,
     mode: RadialMode,

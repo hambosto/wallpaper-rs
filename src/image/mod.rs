@@ -15,9 +15,6 @@ pub(crate) struct Image {
 
 impl Image {
     pub(crate) fn open(path: &Path) -> Result<Self> {
-        if !path.exists() {
-            anyhow::bail!("path does not exist: {}", path.display());
-        }
         if !path.is_file() {
             anyhow::bail!("path is not a file: {}", path.display());
         }

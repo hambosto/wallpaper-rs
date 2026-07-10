@@ -8,7 +8,7 @@ pub(crate) struct Wave {
     scale_x: f64,
     scale_y: f64,
     circle_radius: f64,
-    pub(crate) step: u8,
+    pub(super) step: u8,
     width: usize,
     height: usize,
 }

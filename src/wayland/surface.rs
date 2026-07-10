@@ -40,14 +40,25 @@ impl Surface {
     pub(super) fn commit(&mut self, shm: &Shm) -> Result<()> {
         let needed = self.width.saturating_mul(4).saturating_mul(self.height) as usize;
 
-        if self.pool.as_ref().is_none_or(|p| p.len() < needed) {
-            self.pool = Some(SlotPool::new(needed, shm).context("failed to allocate shm pool for commit")?);
+        let current_len = self.pool.as_ref().map_or(0, SlotPool::len);
+        if current_len < needed {
+            self.pool = None;
         }
-        let pool = self.pool.as_mut().context("shm pool not initialized")?;
 
-        let (buffer, canvas) = pool
-            .create_buffer(self.width.cast_signed(), self.height.cast_signed(), self.width.saturating_mul(4).cast_signed(), Format::Xrgb8888)
-            .context("failed to create buffer")?;
+        if self.pool.is_none() {
+            let pool = SlotPool::new(needed, shm).context("failed to allocate shm pool for commit")?;
+            self.pool = Some(pool);
+        }
+
+        let pool = self.pool.as_mut().context("shm pool not initialized")?;
+        let width = self.width.cast_signed();
+        let height = self.height.cast_signed();
+        let stride = self.width.saturating_mul(4).cast_signed();
+
+        let (buffer, canvas) = pool.create_buffer(width, height, stride, Format::Xrgb8888).context("failed to create buffer")?;
+        if canvas.len() != self.pixels.len() {
+            anyhow::bail!("canvas size {} does not match pixel buffer size {}", canvas.len(), self.pixels.len());
+        }
         canvas.copy_from_slice(&self.pixels);
 
         let wl_surface = self.layer_surface.wl_surface();

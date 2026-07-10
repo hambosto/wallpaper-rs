@@ -2,7 +2,7 @@ use super::animation::AnimationSequence;
 
 pub(crate) struct Fade {
     seq: AnimationSequence,
-    pub(crate) alpha: u16,
+    pub(super) alpha: u16,
 }
 
 impl Fade {

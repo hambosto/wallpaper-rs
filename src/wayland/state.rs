@@ -136,6 +136,7 @@ impl State {
             if surface.transition.as_ref().is_some_and(|t| !t.is_done()) {
                 tracing::info!(width = surface.width, height = surface.height, "interrupting active transition");
             }
+
             surface.transition = None;
             surface.pool = None;
             surface.pixels = Vec::new();

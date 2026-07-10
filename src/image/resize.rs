@@ -5,7 +5,7 @@ use image::{GenericImageView, Rgba, RgbaImage};
 
 use crate::config::{CropGravity, ResizeConfig, ResizeStrategy};
 
-pub(crate) fn apply(src: &RgbaImage, width: u32, height: u32, config: &ResizeConfig) -> Result<RgbaImage> {
+pub(super) fn apply(src: &RgbaImage, width: u32, height: u32, config: &ResizeConfig) -> Result<RgbaImage> {
     let (src_w, src_h) = src.dimensions();
     if (src_w, src_h) == (width, height) {
         return Ok(src.clone());

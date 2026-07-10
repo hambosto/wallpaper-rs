@@ -13,7 +13,6 @@ use crate::config::Config;
 fn setup(connection: Connection) -> Result<(EventLoop<'static, State>, State)> {
     let (global_list, mut event_queue) = wayland_client::globals::registry_queue_init(&connection).context("failed to initialise globals registry")?;
     let mut state = State::bind(&global_list, &event_queue.handle())?;
-
     event_queue.roundtrip(&mut state).context("roundtrip failed")?;
 
     let event_loop = EventLoop::try_new().context("failed to create event loop")?;
@@ -28,6 +27,5 @@ pub(crate) fn run(config: &Config) -> Result<()> {
     let (mut event_loop, mut state) = setup(connection).context("failed to setup wayland")?;
 
     state.apply_wallpaper(config, &event_loop.handle())?;
-
     event_loop.run(None, &mut state, |_| {}).context("event loop error")
 }
