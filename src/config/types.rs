@@ -1,6 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use anyhow::{Context, Result};
 use fast_image_resize::FilterType;
 use serde::Deserialize;
 use smart_default::SmartDefault;
@@ -183,22 +182,5 @@ impl Position {
             Coord::Percent(v) => (1.0 - v) * dim.1 as f32,
         };
         (x, y)
-    }
-}
-
-impl Config {
-    pub(crate) fn load_from_file(path: &Path) -> Result<Self> {
-        let read_config = std::fs::read_to_string(path).context("cannot read from config file")?;
-        let parse_config: Self = toml::from_str(&read_config).context("cannot parse config file")?;
-
-        tracing::info!(
-            image = %parse_config.image.path.display(),
-            resize = ?parse_config.resize.strategy,
-            crop_gravity = ?parse_config.resize.crop_gravity,
-            transition = ?parse_config.transition.transition_type,
-            "config loaded"
-        );
-
-        Ok(parse_config)
     }
 }

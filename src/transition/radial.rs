@@ -1,5 +1,5 @@
+use super::animation::AnimationSequence;
 use crate::config::Position;
-use crate::transition::animation::AnimationSequence;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RadialMode {

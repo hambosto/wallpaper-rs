@@ -1,12 +1,11 @@
 mod config;
-mod render;
+mod image;
 mod transition;
 mod wayland;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 #[cfg(not(target_env = "msvc"))]
 use tikv_jemallocator::Jemalloc;
-use xdg::BaseDirectories;
 
 use crate::config::Config;
 
@@ -17,17 +16,9 @@ static GLOBAL: Jemalloc = Jemalloc;
 fn main() -> Result<()> {
     tracing_subscriber::fmt().with_file(true).with_line_number(true).init();
 
-    let config = load_config()?;
     let version = option_env!("WALLPAPER_BUILD_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
-
     tracing::info!(version, "starting wallpaper-rs");
 
+    let config = Config::load()?;
     wayland::run(&config)
-}
-
-fn load_config() -> Result<Config> {
-    let xdg_dirs = BaseDirectories::with_prefix("wallpaper-rs");
-    let config_file = xdg_dirs.find_config_file("config.toml").context("no configuration found at ~/.config/wallpaper-rs/config.toml")?;
-
-    Config::load_from_file(&config_file)
 }

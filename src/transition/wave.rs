@@ -1,4 +1,4 @@
-use crate::transition::animation::AnimationSequence;
+use super::animation::AnimationSequence;
 
 pub(crate) struct Wave {
     seq: AnimationSequence,

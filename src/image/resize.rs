@@ -1,46 +1,11 @@
-use std::fs::File;
-use std::io::BufReader;
-use std::path::Path;
-
 use anyhow::{Context, Result};
 use fast_image_resize::images::{Image, ImageRef};
 use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer};
-use image::{DynamicImage, GenericImageView, ImageDecoder, ImageReader, Rgba, RgbaImage};
+use image::{GenericImageView, Rgba, RgbaImage};
 
 use crate::config::{CropGravity, ResizeConfig, ResizeStrategy};
 
-pub(crate) struct Render {
-    rgba: RgbaImage,
-}
-
-impl Render {
-    pub(crate) fn new(path: &Path) -> Result<Self> {
-        if !path.exists() {
-            anyhow::bail!("path does not exist: {}", path.display());
-        }
-        if !path.is_file() {
-            anyhow::bail!("path is not a file: {}", path.display());
-        }
-
-        let file = File::open(path).context("failed to open image")?;
-        let reader = ImageReader::new(BufReader::new(file)).with_guessed_format().context("failed to detect image format")?;
-
-        let mut decoder = reader.into_decoder().context("failed to create decoder")?;
-        let orientation = decoder.orientation().context("failed to read orientation")?;
-
-        let mut image = DynamicImage::from_decoder(decoder).context("failed to decode image")?;
-        image.apply_orientation(orientation);
-
-        Ok(Self { rgba: image.into_rgba8() })
-    }
-
-    pub(crate) fn render(&self, width: u32, height: u32, dst: &mut [u8], resize: &ResizeConfig) -> Result<()> {
-        let resized = apply_resize(&self.rgba, width, height, resize)?;
-        garb::bytes::rgba_to_bgra(resized.as_raw(), dst).context("pixel format conversion failed")
-    }
-}
-
-fn apply_resize(src: &RgbaImage, width: u32, height: u32, config: &ResizeConfig) -> Result<RgbaImage> {
+pub(crate) fn apply(src: &RgbaImage, width: u32, height: u32, config: &ResizeConfig) -> Result<RgbaImage> {
     let (src_w, src_h) = src.dimensions();
     if (src_w, src_h) == (width, height) {
         return Ok(src.clone());

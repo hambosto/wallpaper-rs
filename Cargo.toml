@@ -31,3 +31,6 @@ lto = "fat"
 opt-level = 3
 panic = "abort"
 strip = true
+
+[lints.clippy]
+chunks_exact_to_as_chunks = "allow"
