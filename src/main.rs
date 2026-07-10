@@ -3,7 +3,7 @@ mod image;
 mod transition;
 mod wayland;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 #[cfg(not(target_env = "msvc"))]
 use tikv_jemallocator::Jemalloc;
 
@@ -19,6 +19,6 @@ fn main() -> Result<()> {
     let version = option_env!("WALLPAPER_BUILD_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
     tracing::info!(version, "starting wallpaper-rs");
 
-    let config = Config::load()?;
-    wayland::run(&config)
+    let config = Config::load().context("failed to load config")?;
+    wayland::run(&config).context("failed to run wayland wallpaper setter")
 }
