@@ -63,7 +63,7 @@ impl Surface {
 
         let wl_surface = self.layer_surface.wl_surface();
         buffer.attach_to(wl_surface).context("failed to attach buffer")?;
-        wl_surface.damage_buffer(0, 0, self.width.cast_signed(), self.height.cast_signed());
+        wl_surface.damage_buffer(0, 0, width, height);
 
         self.layer_surface.commit();
 

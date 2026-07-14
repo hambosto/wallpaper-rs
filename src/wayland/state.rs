@@ -80,19 +80,16 @@ impl State {
 
         self.stop_animation(loop_handle);
 
-        if self.surfaces.is_empty() {
-            self.surfaces = std::mem::take(&mut self.pending);
-            tracing::info!(count = self.surfaces.len(), "initial wallpaper (transitioning from black)");
-        } else {
-            tracing::info!(count = self.surfaces.len(), "transitioning to new wallpaper");
-        }
+        self.surfaces = std::mem::take(&mut self.pending);
+        tracing::info!(count = self.surfaces.len(), "initial wallpaper (transitioning from black)");
 
         for surface in &mut self.surfaces {
             let buffer_size = surface.width.saturating_mul(surface.height).saturating_mul(4) as usize;
-            surface.pixels = vec![0u8; buffer_size];
 
             let mut target = vec![0u8; buffer_size];
             renderer.render(surface.width, surface.height, &mut target, &config.resize)?;
+
+            surface.pixels = vec![0u8; buffer_size];
             surface.transition = Some(Transition::new(&config.transition, (surface.width, surface.height), target));
         }
 
@@ -102,8 +99,7 @@ impl State {
     }
 
     fn start_animation(&mut self, config: &Config, loop_handle: &LoopHandle<'_, Self>) -> Result<()> {
-        let interval_ms = 1000.0 / f64::from(config.transition.fps);
-        let interval = Duration::from_millis(interval_ms as u64);
+        let interval = Duration::from_secs_f64(1.0 / f64::from(config.transition.fps));
 
         tracing::info!(fps = config.transition.fps, interval_ms = interval.as_millis(), "animation timer started");
 
