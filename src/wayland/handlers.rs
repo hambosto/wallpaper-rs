@@ -55,12 +55,9 @@ impl ShmHandler for State {
     }
 }
 
-impl Dispatch<WlBuffer, ()> for State {
-    fn event(_: &mut Self, _: &WlBuffer, _: Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {}
+impl Dispatch<WlBuffer, (), State> for State {
+    fn event(_: &mut State, _: &WlBuffer, _: Event, _: &(), _: &Connection, _: &QueueHandle<State>) {}
 }
 
-smithay_client_toolkit::delegate_compositor!(State);
-smithay_client_toolkit::delegate_output!(State);
 smithay_client_toolkit::delegate_registry!(State);
-smithay_client_toolkit::delegate_shm!(State);
-smithay_client_toolkit::delegate_layer!(State);
+smithay_client_toolkit::delegate_dispatch2!(State);

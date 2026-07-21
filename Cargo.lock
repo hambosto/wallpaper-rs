@@ -49,9 +49,9 @@ checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
 
 [[package]]
 name = "archmage"
-version = "0.9.27"
+version = "0.9.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddf7537a9d3cb715fedef7cacfef7735d7005704301dd3d4cade35fb06fc37bc"
+checksum = "802588500749f8792342d51afe283f42a7ab6baeb3c5334b62c3c48855a2ec20"
 dependencies = [
  "archmage-macros",
  "safe_unaligned_simd",
@@ -60,9 +60,9 @@ dependencies = [
 
 [[package]]
 name = "archmage-macros"
-version = "0.9.27"
+version = "0.9.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "562827c72b3c65ebc7beabc710ffae5b991c0e9e60f7f71374c219107d22f335"
+checksum = "f6e6c957fc425c4e22da4abc86b3341df09672079df466de138b6b0608a6cfd2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -584,9 +584,9 @@ checksum = "7a79a3332a6609480d7d0c9eab957bca6b455b91bb84e66d19f5ff66294b85b8"
 
 [[package]]
 name = "libc"
-version = "0.2.186"
+version = "0.2.187"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
+checksum = "a7743783ea728ef5c31194c6590797eed286449b4a4e87d626d8a51f0a94e732"
 
 [[package]]
 name = "libfuzzer-sys"
@@ -1182,22 +1182,20 @@ dependencies = [
 
 [[package]]
 name = "smithay-client-toolkit"
-version = "0.20.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0512da38f5e2b31201a93524adb8d3136276fa4fe4aafab4e1f727a82b534cc0"
+checksum = "fec4682a4a89c6fc0c35506c2cd92d05b902ff0991264ba491862c543a761d22"
 dependencies = [
  "bitflags",
  "bytemuck",
  "calloop",
  "calloop-wayland-source",
  "cursor-icon",
- "libc",
  "log",
  "memmap2",
  "pkg-config",
  "rustix",
  "thiserror",
- "wayland-backend",
  "wayland-client",
  "wayland-csd-frame",
  "wayland-cursor",
@@ -1562,9 +1560,9 @@ dependencies = [
 
 [[package]]
 name = "wayland-protocols-experimental"
-version = "20250721.0.1"
+version = "20251230.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40a1f863128dcaaec790d7b4b396cc9b9a7a079e878e18c47e6c2d2c5a8dcbb1"
+checksum = "91c6c3e7178e553d093d46999032bc79aafea9dedd71dd702c8ace7bbc25cf13"
 dependencies = [
  "bitflags",
  "wayland-backend",
@@ -1698,18 +1696,18 @@ checksum = "7a5a4b21e1a62b67a2970e6831bc091d7b87e119e7f9791aef9702e3bef04448"
 
 [[package]]
 name = "zerocopy"
-version = "0.8.54"
+version = "0.8.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7cbbc0a705a0fd05cc3676525980d2bf5a9bc4adac6d6475209a7887cf59d19"
+checksum = "b5a105cd7b140f6eeec8acff2ea38135d3cab283ada58540f629fe51e46696eb"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.54"
+version = "0.8.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2e817b7b52d0c7358d3246da9d69935ebb18116b2b102b4230dac079b4862f5"
+checksum = "0fe976fb70c78cd64cccfe3a6fc142244e8a77b70959b30faf9d0ac37ee228eb"
 dependencies = [
  "proc-macro2",
  "quote",
