@@ -1182,9 +1182,9 @@ dependencies = [
 
 [[package]]
 name = "smithay-client-toolkit"
-version = "0.21.0"
+version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fec4682a4a89c6fc0c35506c2cd92d05b902ff0991264ba491862c543a761d22"
+checksum = "74dc9ee14b0fdcb535f9556141bacac070c994a977d2240ee455d7438a617f00"
 dependencies = [
  "bitflags",
  "bytemuck",
